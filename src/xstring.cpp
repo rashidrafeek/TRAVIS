@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -83,10 +83,10 @@ CxString::CxString(const CxString &s1, const CxString &s2)
 
 	if (i != 0)
 	{
-		if (m_iBufLen < i+1)
+/*		if (m_iBufLen < i+1)
 		{
 			if (m_pData != NULL)
-				delete[] m_pData;
+				delete[] m_pData;*/
 
 			try { m_pData = new char[i+1]; } catch(...) { m_pData = NULL; }
 			if (m_pData == NULL) NewException((double)(i+1)*sizeof(char),__FILE__,__LINE__,__PRETTY_FUNCTION__);
@@ -94,7 +94,7 @@ CxString::CxString(const CxString &s1, const CxString &s2)
 			m_iBufLen = i+1;
 
 			::strcpy(m_pData,s1.m_pData);
-		}
+//		}
 
 		::strcat(m_pData,s2.m_pData);
 		

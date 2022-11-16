@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -89,6 +89,7 @@ public:
 	int m_iCount;    // Wie oft kommt dieses Element in der Simulation vor?
 	bool m_bExclude; // Aus der Molekuelerkennung ausschliessen
 	double m_fCharge;
+	double m_fDefCharge;
 	CElement *m_pElement;
 	CAtom *m_pMergedTo;
 	int m_iIndex;
@@ -590,6 +591,26 @@ public:
 	bool m_bTDATrace; 
 	CGrace *m_pTDAPlot;
 	int m_iHistogramRes;
+
+	// WriteSnapshot Feature
+	bool m_bWriteSnapshots;
+	bool m_bWriteSnapshotDone;
+	bool m_bWriteSnapshotsOnlyRMOM;
+	bool m_bWriteSnapshotsOriginalCoords;
+	bool m_bWriteSnapshotsCenterRM;
+	bool m_bWriteSnapshotsFixRM;
+	bool m_bWriteSnapshotsNoWrite;
+	bool m_bWriteSnapshotsTempRM;
+	int m_iWriteSnapshotFixType[3];
+	int m_iWriteSnapshotFixAtom[3];
+	int m_iWriteSnapshotStride;
+	int m_iWriteSnapshotCounter;
+	long m_iWriteSnapshotsTotalWritten;
+	long m_iWriteSnapshotsTotalCounter;
+	long m_iWriteSnapshotsTotalPerRM;
+	std::vector<double> m_faWriteSnapshotsRange;
+	FILE *m_pWriteSnapshotsFile;
+	CxString m_sWriteSnapshotsFileName;
 };
 
 
@@ -738,6 +759,17 @@ public:
 
 	bool m_bBinOnlyPassedAtoms;
 	bool m_bBinOnlyNotPassedAtoms;
+
+	bool m_bPercTimeDev;
+	int m_iPercTimeDevTempTotal;
+	int m_iPercTimeDevTempCounter;
+	double m_fPercTimeDevMin;
+	double m_fPercTimeDevMax;
+	FILE *m_pPercTimeDevFile;
+
+	bool m_bNormalizeCondition;
+	long m_iNormalizeConditionCount;
+	long m_iNormalizeConditionLocalCount;
 
 	CxIntArray m_iaRMRegions;
 	CxIntArray m_iaOM1Regions;

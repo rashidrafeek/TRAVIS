@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -119,6 +119,7 @@ bool g_bVFHisto;
 unsigned short g_iHistogramRes = 256;
 FILE *g_fRefTrajec, *g_fRefEnv, *g_fVRDF[32];
 CTimeStep *g_pTempTimestep;
+CTimeStep *g_pTempTimestepSnap;
 bool g_bFoldAtomwise;
 double g_fBondFactor;
 bool g_bSaveJustTraj;
@@ -418,6 +419,9 @@ bool g_bSaxonize;
 
 bool g_bUnknownElements;
 
+CClusterAnalysis *g_pClusterAnalysis;
+bool g_bClusterAnalysis;
+
 
 bool g_bNeedMoleculeWrap;
 
@@ -667,6 +671,8 @@ bool g_bOrder;
 COrderEngine *g_pOrderEngine;
 
 
+bool g_bReRa;
+
 bool g_bTDDF;
 CTDDFEngine *g_pTDDFEngine;
 
@@ -711,6 +717,11 @@ bool g_bKuehneLong;
 
 int g_iCellVectorFileColumns;
 std::vector<std::string> g_saDCDRemarkLines;
+
+int g_iDCDAtomCount;
+
+
+
 
 
 

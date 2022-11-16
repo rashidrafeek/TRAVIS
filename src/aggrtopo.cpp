@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -87,7 +87,8 @@ bool CAggrTopoGroup::Parse() {
 
 		if (AskYesNo("      Use atoms from %s for this group (y/n)? [no] ",false,m->m_sName)) {
 
-			ag = new CAtomGroup();
+			try { ag = new CAtomGroup(); } catch(...) { ag = NULL; }
+			if (ag == NULL) NewException((double)sizeof(CAtomGroup),__FILE__,__LINE__,__PRETTY_FUNCTION__);
 _rowagain:
 			AskString("        Which atoms from %s to use (e.g. \"C1,C5-7\", *=all)? [all] ",&buf,"*",m->m_sName);
 			if (!ag->ParseAtoms(m,(const char*)buf)) {
@@ -159,7 +160,9 @@ bool CAggrTopoEngine::Parse() {
 
 	while (true) {
 
-		g = new CAggrTopoGroup();
+		try { g = new CAggrTopoGroup(); } catch(...) { g = NULL; }
+		if (g == NULL) NewException((double)sizeof(CAggrTopoGroup),__FILE__,__LINE__,__PRETTY_FUNCTION__);
+
 		g->m_iObservation = (int)m_oaGroups.size();
 		m_oaGroups.push_back(g);
 
@@ -226,7 +229,8 @@ void CAggrTopoEngine::Initialize() {
 		gd->m_oaObsGroups.resize( m_oaAcceptorGroups.size() );
 		
 		for (za=0;za<(int)m_oaAcceptorGroups.size();za++) {
-			df = new CDF();
+			try { df = new CDF(); } catch(...) { df = NULL; }
+			if (df == NULL) NewException((double)sizeof(CDF),__FILE__,__LINE__,__PRETTY_FUNCTION__);
 			df->m_iResolution = m_iResolution;
 			df->m_fMinVal = 0;
 			df->m_fMaxVal = m_fMaxDist;
@@ -247,7 +251,8 @@ void CAggrTopoEngine::Initialize() {
 		ga->m_oaObsGroups.resize( m_oaDonorGroups.size() );
 		
 		for (zd=0;zd<(int)m_oaDonorGroups.size();zd++) {
-			df = new CDF();
+			try { df = new CDF(); } catch(...) { df = NULL; }
+			if (df == NULL) NewException((double)sizeof(CDF),__FILE__,__LINE__,__PRETTY_FUNCTION__);
 			df->m_iResolution = m_iResolution;
 			df->m_fMinVal = 0;
 			df->m_fMaxVal = m_fMaxDist;
@@ -311,9 +316,10 @@ void CAggrTopoEngine::BuildNeighborMatrix() {
 	CSingleMolecule *sm;
 
 
-	mprintf("    Neighbor matrix occupies %s of RAM.\n",FormatBytes((double)g_iGesAtomCount*g_iGesAtomCount));
+	mprintf("    Neighbor matrix occupies %s of RAM.\n",FormatBytes((double)g_iGesAtomCount*g_iGesAtomCount*sizeof(unsigned char)));
 
-	m_pNeighborMatrix = new unsigned char[g_iGesAtomCount*g_iGesAtomCount];
+	try { m_pNeighborMatrix = new unsigned char[g_iGesAtomCount*g_iGesAtomCount]; } catch(...) { m_pNeighborMatrix = NULL; }
+	if (m_pNeighborMatrix == NULL) NewException((double)sizeof(unsigned char)*g_iGesAtomCount*g_iGesAtomCount,__FILE__,__LINE__,__PRETTY_FUNCTION__);
 
 	for (z2=0;z2<g_iGesAtomCount;z2++)
 		for (z3=0;z3<g_iGesAtomCount;z3++)

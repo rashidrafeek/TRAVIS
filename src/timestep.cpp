@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -730,6 +730,8 @@ bool CTimeStep::ScanMolecules()
 	m_iGesAtomModulo = (m_iGesAtomCount / 60)+1;
 	if (g_iScanMolStep == -1)
 	{
+
+
 		mprintf(WHITE,"\n    Skipping molecule recognition, using atoms as molecules...\n\n");
 		for (z=0;z<(long)m_iGesAtomCount;z++)
 		{
@@ -756,6 +758,7 @@ bool CTimeStep::ScanMolecules()
 		}
 		mprintf("    %d molecules found.\n\n",g_oaSingleMolecules.GetSize());
 		topo = false;
+
 	} else
 	{
 	//	fflush(stdout);
@@ -2447,6 +2450,102 @@ void CTimeStep::WriteTimestep(FILE *a)
 }
 
 
+void CTimeStep::ExportXYZConfiguration( FILE *a, const char *comment, bool originalcoords, std::vector<int> *smlist ) {
+
+	int z, z2, z3, z4, tac;
+	CMolecule *m;
+	CSingleMolecule *sm;
+
+
+	if (smlist != NULL) {
+		tac = 0;
+		for (z=0;z<(int)smlist->size();z++)
+			tac += ((CMolecule*)g_oaMolecules[ ((CSingleMolecule*)g_oaSingleMolecules[ (*smlist)[z] ])->m_iMolType ])->m_iAtomGesNoVirt;
+	} else
+		tac = g_iGesAtomCount;
+
+	mfprintf(a,"  %d\n",tac);
+	if (comment != NULL)
+		mfprintf(a,"%s\n",comment);
+	else
+		mfprintf(a,"\n");
+
+	if (smlist == NULL) {
+
+		for (z=0;z<g_oaMolecules.GetSize();z++) {
+			m = (CMolecule*)g_oaMolecules[z];
+			if (m->m_bPseudo)
+				continue;
+			for (z2=0;z2<m->m_laSingleMolIndex.GetSize();z2++) {
+				sm = (CSingleMolecule*)g_oaSingleMolecules[m->m_laSingleMolIndex[z2]];
+				for (z3=0;z3<m->m_baAtomIndex.GetSize();z3++) {
+					if (m->m_baAtomIndex[z3] == g_iVirtAtomType)
+						continue;
+					for (z4=0;z4<((CxIntArray*)sm->m_oaAtomOffset[z3])->GetSize();z4++)
+						if (originalcoords)
+							mfprintf(
+								a,
+								"  %s  %8.5f  %8.5f  %8.5f\n",
+								(const char*)((CAtom*)g_oaAtoms[m->m_baAtomIndex[z3]])->m_sName,
+								m_vaCoords_Original[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][0]/100.0,
+								m_vaCoords_Original[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][1]/100.0,
+								m_vaCoords_Original[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][2]/100.0
+							);
+						else
+							mfprintf(
+								a,
+								"  %s  %8.5f  %8.5f  %8.5f\n",
+								(const char*)((CAtom*)g_oaAtoms[m->m_baAtomIndex[z3]])->m_sName,
+								m_vaCoords[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][0]/100.0,
+								m_vaCoords[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][1]/100.0,
+								m_vaCoords[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][2]/100.0
+							);
+				}
+			}
+		}
+
+	} else {
+
+		for (z=0;z<g_oaMolecules.GetSize();z++) {
+			m = (CMolecule*)g_oaMolecules[z];
+			if (m->m_bPseudo)
+				continue;
+			for (z2=0;z2<m->m_laSingleMolIndex.GetSize();z2++) {
+				for (z3=0;z3<(int)smlist->size();z3++)
+					if (m->m_laSingleMolIndex[z2] == (*smlist)[z3])
+						goto _found;
+				continue;
+_found:
+				sm = (CSingleMolecule*)g_oaSingleMolecules[m->m_laSingleMolIndex[z2]];
+				for (z3=0;z3<m->m_baAtomIndex.GetSize();z3++) {
+					if (m->m_baAtomIndex[z3] == g_iVirtAtomType)
+						continue;
+					for (z4=0;z4<((CxIntArray*)sm->m_oaAtomOffset[z3])->GetSize();z4++)
+						if (originalcoords)
+							mfprintf(
+								a,
+								"  %s  %8.5f  %8.5f  %8.5f\n",
+								(const char*)((CAtom*)g_oaAtoms[m->m_baAtomIndex[z3]])->m_sName,
+								m_vaCoords_Original[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][0]/100.0,
+								m_vaCoords_Original[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][1]/100.0,
+								m_vaCoords_Original[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][2]/100.0
+							);
+						else
+							mfprintf(
+								a,
+								"  %s  %8.5f  %8.5f  %8.5f\n",
+								(const char*)((CAtom*)g_oaAtoms[m->m_baAtomIndex[z3]])->m_sName,
+								m_vaCoords[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][0]/100.0,
+								m_vaCoords[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][1]/100.0,
+								m_vaCoords[((CxIntArray*)sm->m_oaAtomOffset[z3])->GetAt(z4)][2]/100.0
+							);
+				}
+			}
+		}
+	}
+}
+
+
 void CTimeStep::ExportSingleMolecule_PDB(CSingleMolecule *sm, const char *s) {
 
 	FILE *a;
@@ -3390,6 +3489,11 @@ bool CTimeStep::ReadTimestep(FILE *a, bool needinfo) {
 			if (!ReadDCD(a,needinfo))
 				return false;
 			break;
+
+		case 11:
+			if (!ReadVASP(a,needinfo))
+				return false;
+			break;
 	}
 
 	for (z=0;z<(int)m_iGesAtomCount;z++) {
@@ -3477,6 +3581,11 @@ bool CTimeStep::SkipTimestep(FILE *a)
 
 		case 10:
 			if (!SkipDCD(a))
+				return false;
+			break;
+
+		case 11:
+			if (!SkipVASP(a))
 				return false;
 			break;
 	}
@@ -3744,6 +3853,8 @@ void CTimeStep::CopyFrom(CTimeStep *t)
 	m_vaCoords.CopyFrom(&t->m_vaCoords);
 	if (g_bKeepUnfoldedCoords)
 		m_vaCoords_Unfolded.CopyFrom(&t->m_vaCoords_Unfolded);
+	if (g_bKeepOriginalCoords)
+		m_vaCoords_Original.CopyFrom(&t->m_vaCoords_Original);
 	m_vaForces.CopyFrom(&t->m_vaForces);
 	m_vaVelocities.CopyFrom(&t->m_vaVelocities);
 	if (t->m_paLabels.GetSize() != 0)
@@ -4790,7 +4901,7 @@ void CTimeStep::CalcPolarizabilities() {
 						tempTs1.CenterCOM();
 				}
 				tempTs1.CalcCenters();
-				g_pTetraPak->ProcessStep(&tempTs1, false);
+				g_pTetraPak->ProcessStep(&tempTs1, 0);
 				for (j = 0; j < g_oaMolecules.GetSize(); j++) {
 					CMolecule *m = (CMolecule *)g_oaMolecules[j];
 					int k;
@@ -4846,7 +4957,7 @@ void CTimeStep::CalcPolarizabilities() {
 							tempTs2.CenterCOM();
 					}
 					tempTs2.CalcCenters();
-					g_pTetraPak->ProcessStep(&tempTs2, false);
+					g_pTetraPak->ProcessStep(&tempTs2, 0);
 					int z = 0;
 					for (j = 0; j < g_oaMolecules.GetSize(); j++) {
 						CMolecule *m = (CMolecule *)g_oaMolecules[j];
@@ -5139,6 +5250,7 @@ bool CTimeStep::ReadXYZ(FILE *a, bool needinfo, CxDVec3Array *v)
 	char buf[256], obuf[256],  *p, *q, *r;
 	int z, /*i,*/ j;
 	const char *separators = " \t";
+	bool dam=false;
 
 //	mprintf("*** Read Anfang.\n");
 	j = 0;
@@ -5146,7 +5258,11 @@ bool CTimeStep::ReadXYZ(FILE *a, bool needinfo, CxDVec3Array *v)
 _readagain:
 	buf[0] = 0;
 	(void)fgets_bin(buf,256,a);
-	if (feof(a)) return false;
+	if (feof(a)) {
+		if (dam)
+			eprintf("\nTrajectory file seems to be damaged. Reached end of file while searching for next valid step.\n");
+		return false;
+	}
 //	m_iSizeBytes += strlen(buf);
 	if (strlen(buf) > 0)
 		buf[strlen(buf)-1] = 0;
@@ -5157,6 +5273,8 @@ _again:
 _firsttry:
 	if (feof(a))
 	{
+		if (dam)
+			eprintf("\nTrajectory file seems to be damaged. Reached end of file while searching for next valid step.\n");
 //		mprintf("CTimeStep::ReadTimestep(): Unexpected End of File (1).\n"); 
 		BTOUT; 
 		return false;
@@ -5167,6 +5285,7 @@ _firsttry:
 			eprintf("x");
 //			mprintf("x: %d - \"%s\"\n",j,buf);
 		j++;
+		dam = true;
 		goto _readagain;
 	}
 	if (!IsValidInteger(buf)) {
@@ -5186,6 +5305,8 @@ _firsttry:
 		eprintf("\nCTimeStep::ReadXYZ(): Error: Atom count = 0 (\"%s\"). Your trajectory file is damaged.",buf);
 		goto _readagain;
 	}
+	if (dam)
+		eprintf("\nTrajectory file seems to be damaged. Found next valid step after %d lines.\n",j);
 	if (m_pComment == NULL)
 	{
 		try { m_pComment = new char[256]; } catch(...) { m_pComment = NULL; }
@@ -5263,7 +5384,7 @@ _firsttry:
 			{
 				memcpy(buf,p,q-p);
 				buf[q-p] = 0;
-				if (atof(buf) != 0)
+				if (IsValidFloat(buf))
 				{
 	//				mprintf("\n## \"%s\" --> %f.",buf,atof(buf));
 					z++;
@@ -8216,6 +8337,545 @@ bool CTimeStep::SkipGRO(FILE *a) {
 
 
 
+bool CTimeStep::ReadVASP(FILE *a, bool needinfo) {
+
+	static char buf[256], buf2[64];
+	int z, z2, i;
+	char *p, *q, *r;
+	std::vector<double> cell, pos;
+	std::vector<std::string> tas;
+	std::vector<int> tai;
+	CxDVector3 veca, vecb, vecc;
+	double fac;
+	bool direct;
+
+
+	m_vaCoords.RemoveAll_KeepSize();
+	for (i=0;i<m_paLabels.GetSize();i++)
+		delete[] (char*)m_paLabels[i];
+	m_paLabels.RemoveAll();
+	if (g_bKeepOriginalCoords)
+		m_vaCoords_Original.RemoveAll_KeepSize();
+
+	if (m_pComment == NULL) {
+		try { m_pComment = new char[256]; } catch(...) { m_pComment = NULL; }
+		if (m_pComment == NULL) NewException((double)256*sizeof(char),__FILE__,__LINE__,__PRETTY_FUNCTION__);
+	}
+	m_pComment[0] = 0;
+	(void)fgets_bin(m_pComment,255,a);
+	if (feof(a))
+		return false;
+	if (strlen(m_pComment) >= 254)
+		eprintf("\nCTimeStep::ReadVASP(): Warning: Comment line longer than 254 characters.  ");
+	if (strlen(m_pComment) != 0)
+		m_pComment[strlen(m_pComment)-1] = 0;
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading factor line.\n");
+		return false;
+	}
+	p = buf;
+	while ((*p == ' ') || (*p == '\t'))
+		p++;
+	q = p;
+	while ((*q != ' ') && (*q != '\t') && (*q != '\r') && (*q != '\n') && (*q != 0))
+		q++;
+	r = q;
+	while ((*r == ' ') || (*r == '\t'))
+		r++;
+	if ((*r != '\r') && (*r != '\n') && (*r != 0)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: More than one entry in factor line.\n");
+		mprintf("  \"%s\"\n",buf);
+		return false;
+	}
+	*q = 0;
+	if (!IsValidFloat(p)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Factor is not a valid float.\n");
+		mprintf("  \"%s\"\n",buf);
+		return false;
+	}
+	fac = atof(p);
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading cell vector A.\n");
+		return false;
+	}
+	p = buf;
+	cell.clear();
+	while (true) {
+		while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+			p++;
+		if (*p == 0)
+			break;
+		q = p;
+		while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+			q++;
+		memcpy(buf2,p,q-p);
+		buf2[q-p] = 0;
+		if (!IsValidFloat(buf2)) {
+			eprintf("\nCTimeStep::ReadVASP(): Error: Cell vector A entry %c is not a valid float.\n",'X'+(int)cell.size());
+			mprintf("  \"%s\"\n",buf);
+			return false;
+		}
+		cell.push_back( atof(buf2) );
+		if (*q == 0)
+			break;
+		p = q;
+	}
+	if (cell.size() != 3) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Cell vector A has %lu instead of 3 components.\n",(unsigned long)cell.size());
+		mprintf("  \"%s\"\n",buf);
+		return false;
+	}
+	g_mBoxFromOrtho(0,0) = cell[0] * 100.0 * fac;
+	g_mBoxFromOrtho(0,1) = cell[1] * 100.0 * fac;
+	g_mBoxFromOrtho(0,2) = cell[2] * 100.0 * fac;
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading cell vector B.\n");
+		return false;
+	}
+	p = buf;
+	cell.clear();
+	while (true) {
+		while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+			p++;
+		if (*p == 0)
+			break;
+		q = p;
+		while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+			q++;
+		memcpy(buf2,p,q-p);
+		buf2[q-p] = 0;
+		if (!IsValidFloat(buf2)) {
+			eprintf("\nCTimeStep::ReadVASP(): Error: Cell vector B entry %c is not a valid float.\n",'X'+(int)cell.size());
+			mprintf("  \"%s\"\n",buf);
+			return false;
+		}
+		cell.push_back( atof(buf2) );
+		if (*q == 0)
+			break;
+		p = q;
+	}
+	if (cell.size() != 3) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Cell vector B has %lu instead of 3 components.\n",(unsigned long)cell.size());
+		mprintf("  \"%s\"\n",buf);
+		return false;
+	}
+	g_mBoxFromOrtho(1,0) = cell[0] * 100.0 * fac;
+	g_mBoxFromOrtho(1,1) = cell[1] * 100.0 * fac;
+	g_mBoxFromOrtho(1,2) = cell[2] * 100.0 * fac;
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading cell vector C.\n");
+		return false;
+	}
+	p = buf;
+	cell.clear();
+	while (true) {
+		while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+			p++;
+		if (*p == 0)
+			break;
+		q = p;
+		while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+			q++;
+		memcpy(buf2,p,q-p);
+		buf2[q-p] = 0;
+		if (!IsValidFloat(buf2)) {
+			eprintf("\nCTimeStep::ReadVASP(): Error: Cell vector C entry %c is not a valid float.\n",'X'+(int)cell.size());
+			mprintf("  \"%s\"\n",buf);
+			return false;
+		}
+		cell.push_back( atof(buf2) );
+		if (*q == 0)
+			break;
+		p = q;
+	}
+	if (cell.size() != 3) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Cell vector C has %lu instead of 3 components.\n",(unsigned long)cell.size());
+		mprintf("  \"%s\"\n",buf);
+		return false;
+	}
+	g_mBoxFromOrtho(2,0) = cell[0] * 100.0 * fac;
+	g_mBoxFromOrtho(2,1) = cell[1] * 100.0 * fac;
+	g_mBoxFromOrtho(2,2) = cell[2] * 100.0 * fac;
+
+	if ((g_mBoxFromOrtho(1,0) != 0) || (g_mBoxFromOrtho(2,0) != 0) || (g_mBoxFromOrtho(0,1) != 0) || (g_mBoxFromOrtho(2,1) != 0) || (g_mBoxFromOrtho(0,2) != 0) || (g_mBoxFromOrtho(1,2) != 0)) {
+
+		g_bFoundNonOrtho = true;
+
+		if (g_bDoubleBox) {
+
+			g_mBoxFromOrtho(0,0) *= g_iDoubleBoxX;
+			g_mBoxFromOrtho(1,0) *= g_iDoubleBoxX;
+			g_mBoxFromOrtho(2,0) *= g_iDoubleBoxX;
+
+			g_mBoxFromOrtho(0,1) *= g_iDoubleBoxY;
+			g_mBoxFromOrtho(1,1) *= g_iDoubleBoxY;
+			g_mBoxFromOrtho(2,1) *= g_iDoubleBoxY;
+
+			g_mBoxFromOrtho(0,2) *= g_iDoubleBoxZ;
+			g_mBoxFromOrtho(1,2) *= g_iDoubleBoxZ;
+			g_mBoxFromOrtho(2,2) *= g_iDoubleBoxZ;
+		}
+
+		// Backward transformation matrix
+		g_mBoxToOrtho = CxDMatrix3(g_mBoxFromOrtho);
+		if (!g_mBoxToOrtho.Invert()) {
+			eprintf("CTimeStep::ReadVASP(): Error: Encountered singular cell matrix (cell volume is zero).\n");
+			abort();
+		}
+
+		veca = CxDVector3(g_mBoxFromOrtho(0,0),g_mBoxFromOrtho(0,1),g_mBoxFromOrtho(0,2));
+		vecb = CxDVector3(g_mBoxFromOrtho(1,0),g_mBoxFromOrtho(1,1),g_mBoxFromOrtho(1,2));
+		vecc = CxDVector3(g_mBoxFromOrtho(2,0),g_mBoxFromOrtho(2,1),g_mBoxFromOrtho(2,2));
+
+		// Cell angles
+		g_fBoxAngleA = acos(DotP(vecb,vecc) / vecb.GetLength() / vecc.GetLength()) * 180.0 / Pi;
+		g_fBoxAngleB = acos(DotP(veca,vecc) / veca.GetLength() / vecc.GetLength()) * 180.0 / Pi;
+		g_fBoxAngleC = acos(DotP(veca,vecb) / veca.GetLength() / vecb.GetLength()) * 180.0 / Pi;
+
+		// Orthogonal bounding box
+		g_fBoxX = fabs(g_mBoxFromOrtho(0,0)) + fabs(g_mBoxFromOrtho(1,0)) + fabs(g_mBoxFromOrtho(2,0));
+		g_fBoxY = fabs(g_mBoxFromOrtho(0,1)) + fabs(g_mBoxFromOrtho(1,1)) + fabs(g_mBoxFromOrtho(2,1));
+		g_fBoxZ = fabs(g_mBoxFromOrtho(0,2)) + fabs(g_mBoxFromOrtho(1,2)) + fabs(g_mBoxFromOrtho(2,2));
+
+		// Minimal diameters
+		g_fBoxMinDiamA = fabs(DotP(veca,Normalize(CrossP(vecb,vecc))));
+		g_fBoxMinDiamB = fabs(DotP(vecb,Normalize(CrossP(veca,vecc))));
+		g_fBoxMinDiamC = fabs(DotP(vecc,Normalize(CrossP(veca,vecb))));
+		g_fBoxMinDiam = MIN3(g_fBoxMinDiamA,g_fBoxMinDiamB,g_fBoxMinDiamC);
+
+	} else {
+
+		g_fBoxX = g_mBoxFromOrtho(0,0);
+		g_fBoxY = g_mBoxFromOrtho(1,1);
+		g_fBoxZ = g_mBoxFromOrtho(2,2);
+
+		if (g_bDoubleBox) {
+			g_fBoxX *= g_iDoubleBoxX;
+			g_fBoxY *= g_iDoubleBoxY;
+			g_fBoxZ *= g_iDoubleBoxZ;
+		}
+
+		g_mBoxFromOrtho(0,0) = g_fBoxX;
+		g_mBoxFromOrtho(0,1) = 0;
+		g_mBoxFromOrtho(0,2) = 0;
+
+		g_mBoxFromOrtho(1,0) = 0;
+		g_mBoxFromOrtho(1,1) = g_fBoxY;
+		g_mBoxFromOrtho(1,2) = 0;
+
+		g_mBoxFromOrtho(2,0) = 0;
+		g_mBoxFromOrtho(2,1) = 0;
+		g_mBoxFromOrtho(2,2) = g_fBoxZ;
+
+		g_fBoxAngleA = 90.0;
+		g_fBoxAngleB = 90.0;
+		g_fBoxAngleC = 90.0;
+
+		g_fBoxMinDiam = MIN3(g_fBoxX,g_fBoxY,g_fBoxZ);
+
+		g_mBoxToOrtho = CxDMatrix3(g_mBoxFromOrtho);
+		if (!g_mBoxToOrtho.Invert()) {
+			eprintf("CTimeStep::ReadVASP(): Error: Encountered singular cell matrix (cell volume is zero).\n");
+			abort();
+		}
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading element labels.\n");
+		return false;
+	}
+	p = buf;
+	while (true) {
+		while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+			p++;
+		if (*p == 0)
+			break;
+		q = p;
+		while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+			q++;
+		memcpy(buf2,p,q-p);
+		buf2[q-p] = 0;
+		tas.push_back( (const char*)buf2 );
+		if (*q == 0)
+			break;
+		p = q;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading element count.\n");
+		return false;
+	}
+	p = buf;
+	m_iGesAtomCount = 0;
+	while (true) {
+		while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+			p++;
+		if (*p == 0)
+			break;
+		q = p;
+		while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+			q++;
+		memcpy(buf2,p,q-p);
+		buf2[q-p] = 0;
+		if (!IsValidInteger(buf2)) {
+			eprintf("\nCTimeStep::ReadVASP(): Error: Element count %lu is not a valid integer.\n",(unsigned long)tai.size()+1);
+			mprintf("  \"%s\"\n",buf);
+			return false;
+		}
+		tai.push_back( atoi(buf2) );
+		m_iGesAtomCount += tai.back();
+		if (*q == 0)
+			break;
+		p = q;
+	}
+
+	if (tas.size() != tai.size()) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Element count of %lu does not equal label count of %lu.\n",(unsigned long)tai.size(), (unsigned long)tas.size());
+		return false;
+	}
+
+	if (m_iGesAtomCount == 0) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Atom count = 0. Your trajectory file is damaged.");
+		return false;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading coordinate mode.\n");
+		return false;
+	}
+	p = buf;
+	while ((*p == ' ') || (*p == '\t'))
+		p++;
+	q = p;
+	while ((*q != ' ') && (*q != '\t') && (*q != '\r') && (*q != '\n') && (*q != 0))
+		q++;
+	*q = 0;
+	if (mystricmp(p,"direct") == 0)
+		direct = true;
+	else if (mystricmp(p,"cartesian") == 0)
+		direct = false;
+	else {
+		eprintf("\nCTimeStep::ReadVASP(): Error: Invalid mode \"%s\", expected \"direct\" or \"cartesian\".\n",p);
+		return false;
+	}
+
+	if (needinfo) {
+		if (g_bDoubleBox)
+			m_paLabels.SetSize(m_iGesAtomCount*g_iDoubleBoxFactor);
+		else
+			m_paLabels.SetSize(m_iGesAtomCount);
+	}
+	if (m_vaCoords.GetSize() < (long)m_iGesAtomCount)
+		m_vaCoords.SetSize(m_iGesAtomCount);
+
+	if (g_bKeepOriginalCoords)
+		if (m_vaCoords_Original.GetSize() < (long)m_iGesAtomCount)
+			m_vaCoords_Original.SetSize(m_iGesAtomCount);
+
+	i = 0;
+	for (z=0;z<(int)tai.size();z++) {
+		for (z2=0;z2<tai[z];z2++) {
+
+			(void)fgets_bin(buf,255,a);
+
+			if (feof(a)) {
+				eprintf("\nCTimeStep::ReadVASP(): Error: Encountered end of file while reading atom position %d/%lu.\n",i+1,m_iGesAtomCount);
+				return false;
+			}
+
+			p = buf;
+			pos.clear();
+			while (true) {
+				while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+					p++;
+				if (*p == 0)
+					break;
+				q = p;
+				while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+					q++;
+				memcpy(buf2,p,q-p);
+				buf2[q-p] = 0;
+				if (!IsValidFloat(buf2)) {
+					eprintf("\nCTimeStep::ReadVASP(): Error: Atom position %d entry %c is not a valid float.\n",i+1,'X'+(int)pos.size());
+					mprintf("  \"%s\"\n",buf);
+					return false;
+				}
+				pos.push_back( atof(buf2) );
+				if (*q == 0)
+					break;
+				p = q;
+			}
+
+			if (pos.size() != 3) {
+				eprintf("\nCTimeStep::ReadVASP(): Error: Found %lu instead of 3 components for atom position %d.\n",(unsigned long)pos.size(),i+1);
+				mprintf("  \"%s\"\n",buf);
+				return false;
+			}
+
+			if (needinfo) {
+				try { r = new char[tas[z].length()+1]; } catch(...) { r = NULL; }
+				if (r == NULL) NewException((double)(tas[z].length()+1)*sizeof(char),__FILE__,__LINE__,__PRETTY_FUNCTION__);
+				strcpy(r,tas[z].c_str());
+				m_paLabels[i] = r;
+			}
+
+			if (direct) {
+				m_vaCoords[i][0] = pos[0] * g_mBoxFromOrtho(0,0) + pos[1] * g_mBoxFromOrtho(1,0) + pos[2] * g_mBoxFromOrtho(2,0);
+				m_vaCoords[i][1] = pos[0] * g_mBoxFromOrtho(0,1) + pos[1] * g_mBoxFromOrtho(1,1) + pos[2] * g_mBoxFromOrtho(2,1);
+				m_vaCoords[i][2] = pos[0] * g_mBoxFromOrtho(0,2) + pos[1] * g_mBoxFromOrtho(1,2) + pos[2] * g_mBoxFromOrtho(2,2);
+			} else {
+				m_vaCoords[i][0] = pos[0] * 100.0;
+				m_vaCoords[i][1] = pos[1] * 100.0;
+				m_vaCoords[i][2] = pos[2] * 100.0;
+			}
+
+			if (g_bKeepOriginalCoords)
+				m_vaCoords_Original[i] = m_vaCoords[i];
+
+			i++;
+		}
+	}
+
+	return true;
+}
+
+
+
+bool CTimeStep::SkipVASP(FILE *a) {
+
+	static char buf[256], buf2[64];
+	int z, z2, i;
+	char *p, *q;
+	std::vector<std::string> tas;
+	std::vector<int> tai;
+
+
+	(void)fgets_bin(m_pComment,255,a);
+	if (feof(a))
+		return false;
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading factor line.\n");
+		return false;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading cell vector A.\n");
+		return false;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading cell vector B.\n");
+		return false;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading cell vector C.\n");
+		return false;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading element labels.\n");
+		return false;
+	}
+	p = buf;
+	while (true) {
+		while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+			p++;
+		if (*p == 0)
+			break;
+		q = p;
+		while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+			q++;
+		memcpy(buf2,p,q-p);
+		buf2[q-p] = 0;
+		tas.push_back( (const char*)buf2 );
+		if (*q == 0)
+			break;
+		p = q;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading element count.\n");
+		return false;
+	}
+	p = buf;
+	m_iGesAtomCount = 0;
+	while (true) {
+		while ((strchr(" \t\r\n",*p) != NULL) && (*p != 0))
+			p++;
+		if (*p == 0)
+			break;
+		q = p;
+		while ((strchr(" \t\r\n",*q) == NULL) && (*q != 0))
+			q++;
+		memcpy(buf2,p,q-p);
+		buf2[q-p] = 0;
+		if (!IsValidInteger(buf2)) {
+			eprintf("\nCTimeStep::SkipVASP(): Error: Element count %lu is not a valid integer.\n",(unsigned long)tai.size()+1);
+			mprintf("  \"%s\"\n",buf);
+			return false;
+		}
+		tai.push_back( atoi(buf2) );
+		m_iGesAtomCount += tai.back();
+		if (*q == 0)
+			break;
+		p = q;
+	}
+
+	if (tas.size() != tai.size()) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Element count of %lu does not equal label count of %lu.\n",(unsigned long)tai.size(), (unsigned long)tas.size());
+		return false;
+	}
+
+	if (m_iGesAtomCount == 0) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Atom count = 0. Your trajectory file is damaged.");
+		return false;
+	}
+
+	(void)fgets_bin(buf,255,a);
+	if (feof(a)) {
+		eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading coordinate mode.\n");
+		return false;
+	}
+
+	i = 0;
+	for (z=0;z<(int)tai.size();z++) {
+		for (z2=0;z2<tai[z];z2++) {
+
+			(void)fgets_bin(buf,255,a);
+
+			if (feof(a)) {
+				eprintf("\nCTimeStep::SkipVASP(): Error: Encountered end of file while reading atom position %d/%lu.\n",i+1,m_iGesAtomCount);
+				return false;
+			}
+
+			i++;
+		}
+	}
+
+	return true;
+}
+
+
+
 bool CTimeStep::ReadDCDHeader(FILE *a) {
 
 	char head[4];
@@ -8514,10 +9174,18 @@ _again:
 			goto _again;
 		}
 
+		g_iDCDAtomCount = m_iGesAtomCount;
+
 		fclose(b);
 
-	} else
-		m_iGesAtomCount = g_iGesAtomCount;
+	} else {
+
+		if (g_iDCDAtomCount == 0) {
+			eprintf("Internal error: g_iDCDAtomCount == 0.\n");
+			abort();
+		}
+		m_iGesAtomCount = g_iDCDAtomCount;
+	}
 
 	if (g_bDCDSkipHeader) {
 		if (!SkipDCDHeader( a ))
@@ -8526,12 +9194,10 @@ _again:
 	}
 
 	if (needinfo) {
-		if (needinfo) {
-			if (g_bDoubleBox)
-				m_paLabels.SetSize(m_iGesAtomCount*g_iDoubleBoxFactor);
-			else
-				m_paLabels.SetSize(m_iGesAtomCount);
-		}
+		if (g_bDoubleBox)
+			m_paLabels.SetSize(m_iGesAtomCount*g_iDoubleBoxFactor);
+		else
+			m_paLabels.SetSize(m_iGesAtomCount);
 		for (z=0;z<(int)m_iGesAtomCount;z++)
 			m_paLabels[z] = g_pDCDLabelsTS->m_paLabels[z];
 	}
@@ -8933,8 +9599,12 @@ bool CTimeStep::ReadVoronoi(FILE *a, bool needinfo) {
 			return false;
 		}
 		p = q;
-		g_bFoundNonOrtho = true;
 		ExtractXYZCellGeometry9(p);
+
+		if ((g_mBoxFromOrtho(1,0) != 0) || (g_mBoxFromOrtho(2,0) != 0) || (g_mBoxFromOrtho(0,1) != 0) || (g_mBoxFromOrtho(2,1) != 0) || (g_mBoxFromOrtho(0,2) != 0) || (g_mBoxFromOrtho(1,2) != 0))
+			g_bFoundNonOrtho = true;
+		else
+			g_bFoundNonOrtho = false;
 	}
 
 	// Third comment line
@@ -9392,7 +10062,7 @@ bool CTimeStep::AnalyzeLAMMPSColumns( const char *s ) {
 
 	if (g_iaLAMMPSColumnToOffset[ LAMMPS_FIELD_ID ] == -1) {
 		mprintf("\n");
-		eprintf("    CTimeStep::ReadLAMMPS(): Warning: The \"id\" field is not present in the trajectory.\n");
+		eprintf("    CTimeStep::ReadLAMMPS(): Warning: The \"id\" field is not present in the trajectory.\n\n");
 		mprintf("    This is fine as long as you use \"dump_modify sort id\" to write your trajectory.\n");
 		mprintf("    Otherwise, the atom ordering will be random, and TRAVIS has no chance to detect it,\n");
 		mprintf("    which will lead to *wrong* analysis results!\n\n");

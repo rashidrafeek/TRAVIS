@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -1702,7 +1702,7 @@ void CStructureFactor::HandleGroup( const char *name, CStructureFactorGroup *sfg
 					}
 					break;
 
-				case 2: // Normalization factor 2
+				case 1: // Normalization factor 2
 					switch(i) {
 						case 0: // SFac
 							sf = 0.0;
@@ -1732,12 +1732,12 @@ void CStructureFactor::HandleGroup( const char *name, CStructureFactorGroup *sfg
 					}
 					break;
 
-				case 3: // Manual Normalization
+				case 2: // Manual Normalization
 					for (z2=0;z2<dfwork->m_iResolution;z2++)
 						workbin[z2] *= m_fNormalizationFactor;
 					break;
 
-				case 4: // No Normalization
+				case 3: // No Normalization
 					// Do nothing
 					break;
 			}

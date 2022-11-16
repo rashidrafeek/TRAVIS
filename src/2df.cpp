@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -1030,9 +1030,9 @@ void C2DF::WriteGnuplotInput(const char *prefix, const char *name, const char *s
 	mfprintf(b,"\n");
 	mfprintf(b,"# Plotting function\n");
 	if (m_iColorScale == 4) // Plus-Minus-Plot
-		mfprintf(b,"f_plot(x) = abs(x)**%G * sgn(x)",m_fPlotExp);
+		mfprintf(b,"f_plot(x) = (abs(x)>s_zmax?s_zmax:abs(x))**%G * sgn(x)",m_fPlotExp);
 	else
-		mfprintf(b,"f_plot(x) = x**%G\n",m_fPlotExp);
+		mfprintf(b,"f_plot(x) = (x>s_zmax?s_zmax:x)**%G\n",m_fPlotExp);
 
 	mfprintf(b,"\n");
 	mfprintf(b,"# Minimum X\n");
@@ -1070,7 +1070,7 @@ void C2DF::WriteGnuplotInput(const char *prefix, const char *name, const char *s
 		mfprintf(b,"# Minimum Z\n");
 		mfprintf(b,"s_zmin = 0\n");
 		mfprintf(b,"# Maximum Z\n");
-		mfprintf(b,"s_zmax = 1000\n");
+		mfprintf(b,"s_zmax = %f\n",m_fMaxEntry);
 		mfprintf(b,"# Major Z tics distance\n");
 		mfprintf(b,"s_ztics = 500\n");
 		mfprintf(b,"# Minor Z tics number\n");

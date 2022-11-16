@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -236,6 +236,23 @@ public:
 			GetAt(0,1)*m.GetAt(2,0) + GetAt(1,1)*m.GetAt(2,1) + GetAt(2,1)*m.GetAt(2,2),
 			GetAt(0,2)*m.GetAt(2,0) + GetAt(1,2)*m.GetAt(2,1) + GetAt(2,2)*m.GetAt(2,2)
 			);
+	}
+
+
+	void operator += (const CxDMatrix3 &m)
+	{
+		#ifdef DEBUG_CMATRIX3
+		mprintf("@ CxDMatrix3::operator += (CxDMatrix3)\n");
+		#endif
+		m_pData[0] += m.m_pData[0];
+		m_pData[1] += m.m_pData[1];
+		m_pData[2] += m.m_pData[2];
+		m_pData[3] += m.m_pData[3];
+		m_pData[4] += m.m_pData[4];
+		m_pData[5] += m.m_pData[5];
+		m_pData[6] += m.m_pData[6];
+		m_pData[7] += m.m_pData[7];
+		m_pData[8] += m.m_pData[8];
 	}
 
 

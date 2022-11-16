@@ -9,7 +9,7 @@
 
     Copyright (c) Martin Brehm and Martin Thomas,
                   Martin Luther University Halle-Wittenberg, Germany,
-                  2016 - 2021.
+                  2016 - 2022.
 
     Please cite:  M. Brehm, M. Thomas: "An Efficient Lossless Compression Algorithm
                   for Trajectories of Atom Positions and Volumetric Data",

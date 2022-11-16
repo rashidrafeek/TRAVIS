@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -270,6 +270,7 @@ void InitAnalyses()
 	AddAnalysis(g,"Evaluate Structural Condition","cond");
 	AddAnalysis(g,"Compute Structure Factor","sfac");
 	AddAnalysis(g,"Aggregation Topology Analysis", "agtopo");
+	AddAnalysis(g,"Sankey diagram plot", "sankey");
 	AddAnalysis(g,"Contact Matrix / Connection Matrix", "cmat");
 	AddAnalysis(g,"Particle Density inside Geometric Object", "geodens");
 
@@ -300,6 +301,7 @@ void InitAnalyses()
 	AddAnalysis(g,"(old) Calculate IR Spectrum","ir");
 	AddAnalysis(g,"(old) Calculate Raman Spectrum","raman");
 	AddAnalysis(g, "(old) Calculate VCD Spectrum", "vcd");
+	AddAnalysis(g, "Calculate Resonance Raman Spectrum", "rera");
 	AddAnalysis(g, "Save Dipole Restart File", "drst");
 	AddAnalysis(g, "Save Magnetic Moment Restart File", "mrst");
 	AddAnalysis(g, "Set up Polarizability Calculation", "pol");
@@ -320,6 +322,7 @@ void InitAnalyses()
 	AddAnalysis(g,"Domain Analysis","doma");
 	AddAnalysis(g,"Order Parameters","order");
 	AddAnalysis(g,"Hole Theory based Analysis","hole");
+	AddAnalysis(g,"Cluster Analysis","cla");
 
 	/**********************************************************************/
 	BTOUT;
@@ -1401,7 +1404,20 @@ bool SetAnalysis(const char *s)
 		g_bTDDF = true;
 		return true;
 	}
+	if (mystricmp(s, "sankey") == 0) {
+		mprintf("\n");
+		mprintf("    To create a Sankey diagram, please perform an aggregation topology analysis first.\n");
+		mprintf("    Choose \"agtopo\" in the main function menu to do so. As a result, you will obtain\n");
+		mprintf("    an \"aggrtopo.dat\" file. If you have that file, start TRAVIS again with the parameters\n\n");
+		mprintf("    \"travis -sankey aggrtopo.dat\".\n\n");
+		mprintf("    Leaving now.\n\n");
+		exit(0);
+	}
 
+	if (mystricmp(s, "rera") == 0) {
+		g_bReRa = true;
+		return true;
+	}
 	if(mystricmp(s, "vcd") == 0) {
 		g_bVCD = true;
 		return true;
@@ -1625,6 +1641,13 @@ bool SetAnalysis(const char *s)
 		return true;
 	}
 
+	if (mystricmp(s,"cla")==0)
+	{
+		g_bClusterAnalysis = true;
+		BTOUT;
+		return true;
+	}
+
 
 	if (mystricmp(s,"nbx")==0)
 	{
@@ -1730,7 +1753,8 @@ bool ParseFunctions(const char *s)
 	CAnalysis *a;
 
 
-	
+
+	g_bReRa = false;
 	g_bMinimizeChargeVar2 = false;
 	g_bAmberCellAsked = false;
 	g_bAmberCellInfo = false;
@@ -1919,10 +1943,10 @@ void WriteHeader()
 
 	mprintf(WHITE,"\n    TRajectory Analyzer and VISualizer  -  Open-source free software under GNU GPL v3\n\n");
 //	mprintf("");
-	mprintf("    Copyright (c) Martin Brehm      (2009-2021), University of Halle (Saale)\n");
-	mprintf("                  Martin Thomas     (2012-2021)\n");
-	mprintf("                  Sascha Gehrke     (2016-2021), University of Bonn\n");
-	mprintf("                  Barbara Kirchner  (2009-2021), University of Bonn\n");
+	mprintf("    Copyright (c) Martin Brehm      (2009-2022), University of Halle (Saale)\n");
+	mprintf("                  Martin Thomas     (2012-2022)\n");
+	mprintf("                  Sascha Gehrke     (2016-2022), University of Bonn\n");
+	mprintf("                  Barbara Kirchner  (2009-2022), University of Bonn\n");
 	mprintf("\n");
 	mprintf(YELLOW,"    http://www.travis-analyzer.de\n\n");
 //	mprintf("     Open-source freeware; Licensed under the GNU General Public License v3.\n\n");
@@ -2025,7 +2049,10 @@ void WriteHeader()
 			mprintf(" MSVC++ ");
 			// See  https://docs.microsoft.com/de-de/cpp/preprocessor/predefined-macros?view=vs-2019
 			switch(_MSC_VER) {
-				case 1929: mprintf("16.10, VS 2019"); break;
+				case 1932: mprintf("17.2, VS 2022"); break;
+				case 1931: mprintf("17.1, VS 2022"); break;
+				case 1930: mprintf("17.0, VS 2022"); break;
+				case 1929: mprintf("16.10/11, VS 2019"); break;
 				case 1928: mprintf("16.8/9, VS 2019"); break;
 				case 1927: mprintf("16.7, VS 2019"); break;
 				case 1926: mprintf("16.6, VS 2019"); break;
@@ -2152,7 +2179,7 @@ void WriteHeader()
     #if defined(__x86_64__) || defined(_M_X64)
 		mprintf( "x86_64" );
     #elif defined(i386) || defined(__i386__) || defined(__i386) || defined(_M_IX86)
-		mprintf( "x86_32" );
+		mprintf( "i386" );
     #elif defined(__ARM_ARCH_2__)
 		mprintf( "ARM2" );
     #elif defined(__ARM_ARCH_3__) || defined(__ARM_ARCH_3M__)
@@ -2197,7 +2224,7 @@ void WriteHeader()
 		mprintf( ", __CHAR_UNSIGNED__" );
 	#endif
 
-	mprintf(", int=%lub, long=%lub, addr=%lub, 0xA0B0C0D0=%02X,%02X,%02X,%02X.\n",(unsigned long)sizeof(int),(unsigned long)sizeof(long),(unsigned long)sizeof(void*),*ca,*cb,*cc,*cd);
+	mprintf(", char=%lub, int=%lub, long=%lub, addr=%lub, 0xA0B0C0D0=%02X,%02X,%02X,%02X.\n",(unsigned long)sizeof(char),(unsigned long)sizeof(int),(unsigned long)sizeof(long),(unsigned long)sizeof(void*),*ca,*cb,*cc,*cd);
 
 	mprintf(WHITE," #  ");
 	if (g_sHomeDir != NULL)
@@ -2234,20 +2261,22 @@ void CommandLineHelp()
 	BTIN;
 	mprintf(WHITE,"    List of supported command line options:\n\n");
 	mprintf("      -p <file>       Load position data from specified trajectory file.\n");
-	mprintf("                      Format may be *.xyz, *.pdb, *.lmp/*.lammpstrj (LAMMPS), HISTORY (DLPOLY), *.gro, *.dcd, or *.prmtop/*.mdcrd (Amber).\n");
-	mprintf("                      The BQB format (*.bqb, *.btr, *.emp, *.blist) as well as *.voronoi are also supported.\n");
+	mprintf("                      Format may be *.xyz, *.pdb, *.lmp (LAMMPS), HISTORY (DLPOLY), POSCAR/XDATCAR (VASP),\n");
+	mprintf("                                    *.gro, *.dcd, or *.prmtop/*.mdcrd (Amber).\n");
+	mprintf("                      The bqb format (*.bqb, *.btr, *.emp, *.blist) as well as *.voronoi are also supported.\n");
 	mprintf("      -vel <file>     Read atom velocities from a file in addition to the position trajectory.\n");
 	mprintf("                      Currently, only .xyz format is supported for velocity data.\n");
 	mprintf("      -i <file>       Read input from specified text file.\n");
 	mprintf("      -c <file>       Read and execute control file (experimental).\n");
 	mprintf("      cubetool        Execute the CubeTool for modifying Gaussian Cube files.\n");
-	mprintf("      -sankey <file>  Create sankey diagrams (file name is optional).\n");
+	mprintf("      -sankey <file>  Create Sankey diagrams (file name is optional).\n");
 	mprintf("      -ramanfrompola  Compute Raman spectra from existing polarizability time series.\n");
 	mprintf("      (de-)compress   Start built-in bqbtool (compress trajectories to BQB format).\n");
 	mprintf("      check           Check BQB file integrity.\n");
 //	mprintf("      compare         Compare atom coordinates in BQB file to reference trajectory.\n");
 //	mprintf("      split           Split BQB file into parts.\n");
 //	mprintf("      merge           Merge several BQB files into one.\n");
+	mprintf("\n");
 	mprintf("      -config <file>  Load the specified configuration file.\n");
 	mprintf("      -stream         Treat input trajectory as a stream (e.g. named pipe): No fseek, etc.\n");
 	mprintf("      -showconf       Show a tree structure of the configuration file.\n");
@@ -2259,7 +2288,7 @@ void CommandLineHelp()
 	mprintf("      -help, -?       Shows this help.\n");
 	mprintf("\n");
 	mprintf("    If only one argument is specified, it is assumed to be the name of a trajectory file.\n");
-	mprintf("    If argument is specified at all, TRAVIS asks for the trajectory file to open.\n");
+	mprintf("    If no argument is specified at all, TRAVIS asks for the trajectory file to open.\n");
 	BTOUT;
 }
 
@@ -2439,7 +2468,7 @@ bool ParseArgs(int argc, const char *argv[])
 			p++;
 			if ((mystricmp(p,"xyz")==0) || (mystricmp(p,"cube")==0) || (mystricmp(p,"pdb")==0) || (mystricmp(p,"mol2")==0) ||
 				(mystricmp(p,"lmp")==0) || (mystricmp(p,"HISTORY")==0) || (mystricmp(p,"prmtop")==0) || (mystricmp(p,"mdcrd")==0) ||
-				(mystricmp(p,"gro")==0) || (mystricmp(p,"dcd")==0) || (mystricmp(p,"voronoi")==0) || (mystricmp(p,"lammpstrj")==0) || 
+				(mystricmp(p,"gro")==0) || (mystricmp(p,"dcd")==0) || (mystricmp(p,"voronoi")==0) || 
 				(mystricmp(p,"bqb")==0) || (mystricmp(p,"bbq")==0) || (mystricmp(p,"btr")==0) || (mystricmp(p,"blist")==0) || 
 				(mystricmp(p,"emp")==0))	{
 
@@ -3322,6 +3351,20 @@ bool DetermineTrajFormat()
 		}
 	}
 
+	// VASP trajectories have no file extension
+	if (strlen(g_sInputTraj) >= 6) {
+		if (mystricmp(&g_sInputTraj[strlen(g_sInputTraj)-6],"POSCAR") == 0) {
+			g_iTrajFormat = 11;
+			return true;
+		}
+	}
+	if (strlen(g_sInputTraj) >= 7) {
+		if (mystricmp(&g_sInputTraj[strlen(g_sInputTraj)-7],"XDATCAR") == 0) {
+			g_iTrajFormat = 11;
+			return true;
+		}
+	}
+
 	// All other file formats require an extension
 	p = strrchr(g_sInputTraj,'.');
 	if (p == NULL)
@@ -3342,7 +3385,7 @@ bool DetermineTrajFormat()
 		g_iTrajFormat = 2;
 		return true;
 	}
-	if ((mystricmp(p,"lmp")==0) || (mystricmp(p,"lammpstrj")==0))
+	if (mystricmp(p,"lmp")==0)
 	{
 		g_iTrajFormat = 3;
 		return true;
@@ -3400,8 +3443,9 @@ _unk:
 	mprintf(WHITE,"The following formats are supported:\n");
 	mprintf("  - XYZ trajectories (extension .xyz)\n");
 	mprintf("  - PDB trajectories (extension .pdb)\n");
-	mprintf("  - LAMMPS trajectories \"dump custom element xu yu zu\" (extension .lmp or .lammpstrj)\n");
+	mprintf("  - LAMMPS trajectories \"dump custom element xu yu zu\" (extension .lmp)\n");
 	mprintf("  - DLPOLY trajectories (file name \"HISTORY\", no extension)\n");
+	mprintf("  - VASP trajectories (file name \"POSCAR\" or \"XDATCAR\", no extension)\n");
 	mprintf("  - Gromacs text format trajectories (extension .gro)\n");
 	mprintf("  - DCD binary trajectories (extension .dcd)\n");
 #ifdef USE_NETCDF
@@ -3586,6 +3630,12 @@ void WriteCredits()
 		mprintf("    K. A. F. Roehrig, T. D. Kuehne; Phys. Rev. E 2013, 87, 045301.   (DOI 10.1103/PhysRevE.87.045301 )\n\n");
 	}
 
+	if (g_bClusterAnalysis) {
+		mprintf(YELLOW,"  * For the hierarchical cluster analysis:\n\n");
+		mprintf(WHITE,"    \"Cluster Analysis in Liquids: A Novel Tool in TRAVIS\",\n");
+		mprintf("    T. Froembgen, J. Blasius, V. Alizadeh, A. Chaumont, M. Brehm, B. Kirchner; submitted.\n\n");
+	}
+
 	tb = false;
 	if (g_bVCD || g_bCubeTimeDev || citeall)
 		tb = true;
@@ -3650,6 +3700,7 @@ void WriteCredits_Long()
 	mprintf(YELLOW,"    > "); mprintf(WHITE,"Oldamur Holloczki         "); mprintf("Testing and Debugging\n");
 	mprintf(YELLOW,"    > "); mprintf(WHITE,"Daniela Kerle             "); mprintf("Name Finding\n");
 	mprintf(YELLOW,"    > "); mprintf(WHITE,"Miriam Kohagen            "); mprintf("Testing and Debugging\n");
+	mprintf(YELLOW,"    > "); mprintf(WHITE,"Matthias Krack            "); mprintf("Testing and valuable suggestions\n");
 	mprintf(YELLOW,"    > "); mprintf(WHITE,"Marina Macchiagodena      "); mprintf("Testing and new Ideas\n");
 	mprintf(YELLOW,"    > "); mprintf(WHITE,"Friedrich \"Fred\" Malberg  "); mprintf("Leading Bug Finder :-)\n");
 	mprintf(YELLOW,"    > "); mprintf(WHITE,"Christopher Peschel       "); mprintf("Testing and Debugging\n");
@@ -4199,19 +4250,22 @@ void parseCoreCharges() {
 			if (i == g_iVirtAtomType)
 				continue;
 			double def = 0.0;
-			if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "B") == 0) def = 3.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "C") == 0) def = 4.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "N") == 0) def = 5.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "O") == 0) def = 6.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "F") == 0) def = 7.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Na") == 0) def = 9.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Si") == 0) def = 4.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "P") == 0) def = 5.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "S") == 0) def = 6.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Cl") == 0) def = 7.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Br") == 0) def = 7.0;
-			else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "I") == 0) def = 7.0;
-			else def = (double)((CAtom *)g_oaAtoms[i])->m_pElement->m_iOrd;
+			if (((CAtom *)g_oaAtoms[i])->m_fDefCharge == 0) {
+				if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "B") == 0) def = 3.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "C") == 0) def = 4.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "N") == 0) def = 5.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "O") == 0) def = 6.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "F") == 0) def = 7.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Na") == 0) def = 9.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Si") == 0) def = 4.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "P") == 0) def = 5.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "S") == 0) def = 6.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Cl") == 0) def = 7.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "Br") == 0) def = 7.0;
+				else if (mystricmp(((CAtom *)g_oaAtoms[i])->m_sName, "I") == 0) def = 7.0;
+				else def = (double)((CAtom *)g_oaAtoms[i])->m_pElement->m_iOrd;
+			} else
+				def = ((CAtom *)g_oaAtoms[i])->m_fDefCharge;
 			((CAtom *)g_oaAtoms[i])->m_fCharge = AskFloat("    Enter core charge for atom type %s: [%.1f] ", def, (const char*)((CAtom*)g_oaAtoms[i])->m_sName, def);
 		}
 	mprintf(WHITE, "\n  < End Core Charge Definition <\n");
@@ -5355,7 +5409,7 @@ void ParseDipole()
 	
 	mprintf("\n    Calculating dipole moments from first time step...\n\n");
 	if (g_bTegri) {
-		g_pTetraPak->ProcessStep(&g_TimeStep, true);
+		g_pTetraPak->ProcessStep(&g_TimeStep, 2);
 		mprintf("\n");
 	}
 //	for (i=0;i<50;i++)
@@ -5398,7 +5452,7 @@ void ParseDipole()
 		CxIntArray *tia;
 //		char buf[256];
 		CxString buf;
-		if (AskYesNo("    Write out cartesian dipole vectors of molecules in each step (y/n)? [no] ",false))
+		if (AskYesNo("    Write out Cartesian dipole vectors of molecules in each step (y/n)? [no] ",false))
 		{
 			g_bDumpDipoleVector = true;
 			mprintf("\n");
@@ -6269,7 +6323,7 @@ void DipolGrimme(const char *s)
 
 	mprintf("\n    This analysis reads dipole vectors from a text file\n");
 	mprintf("    and calculates the dipole vector ACF / IR spectrum.\n\n");
-	mprintf("    The text file needs to contain the three cartesian components\n");
+	mprintf("    The text file needs to contain the three Cartesian components\n");
 	mprintf("    of the dipole vector (three numbers per line); one line equals one time step.\n\n");
 
 	if (s == NULL)
@@ -6556,6 +6610,7 @@ void InitGlobalVars()
 	g_fBoxY = 0;
 	g_fBoxZ = 0;
 	g_bVerbose = false;
+	g_bClusterAnalysis = false;
 	g_bTDDF = false;
 	g_pTDDFEngine = NULL;
 	g_bGeoDens = false;
@@ -6573,6 +6628,8 @@ void InitGlobalVars()
 	g_sInputFile = NULL;
 	g_bKeepOriginalCoords = false;
 	g_bAbortAnalysis = true;
+	g_pTempTimestep = NULL;
+	g_pTempTimestepSnap = NULL;
 	g_bMiddleAvg = true;
 	g_bVFHisto = false;
 	g_bUseVelocities = false;
@@ -6616,6 +6673,7 @@ void InitGlobalVars()
 	#ifdef NEW_CHARGEVAR
 		g_pChargeVar2 = NULL;
 	#endif
+	g_bReRa = false;
 	g_bQuadrupoleKeepTrace = false;
 	g_bVoronoiMoments = true;
 	g_iWannierAtomType = -1;
@@ -6694,6 +6752,7 @@ void InitGlobalVars()
 	g_bSaveTrajPattern = false;
 	g_iSaveTrajPatternPos = 0;
 	g_iCellVectorFileColumns = -1;
+	g_iDCDAtomCount = 0;
 }
 
 
@@ -7032,7 +7091,39 @@ void ParseVoronoiRadii()
 
 	if (i == 0)
 		mprintf("\n    Not using Voronoi radii.\n\n");
-	else mprintf("\n    Voronoi radii defined.\n\n");
+	else
+		mprintf("\n    Voronoi radii defined.\n\n");
+
+
+	mprintf("    The Voronoi integration can have issues with highly symmetric structures.\n");
+	mprintf("    It is recommended to add a tiny amount of random noise (\"jitter\") to the\n");
+	mprintf("    atom coordinates to break the symmetry. The jitter will be switched on\n");
+	mprintf("    by default. Switch it off for backward compatibility with earlier TRAVIS versions.\n\n");
+
+	glv_bJitter = AskYesNo("    Use position jitter to mitigate symmetry issues (y/n)? [yes] ",true);
+
+	if (glv_bJitter) {
+
+		if (g_bAdvanced2) {
+			// The jitter amplitude variable is in Angstrom internally...
+			glv_fJitterAmplitude = AskFloat("    Enter jitter amplitude (in pm): [0.1] ",0.1) * 0.01;
+			glv_iJitterSeed = AskUnsignedInteger("    Enter jitter random seed: [0] ",0);
+		} else {
+			mprintf("\n");
+			mprintf("    Using a jitter amplitude of 0.1 pm and a random seed of 0.\n");
+			mprintf("    Switch on the advanced mode to modify these parameters.\n");
+		}
+
+		mprintf("\n");
+		mprintf("    Jitter switched on.\n");
+
+	} else {
+
+		mprintf("\n");
+		mprintf("    Jitter switched off.\n");
+	}
+
+	mprintf("\n");
 }
 
 
@@ -7104,7 +7195,7 @@ void ExtractXYZCellGeometry6(const char *s)
 			memcpy(buf,p,q-p);
 			buf[q-p] = 0;
 //			mprintf("# buf = \"%s\".\n",buf);
-			if (atof(buf) != 0)
+			if (IsValidFloat(buf))
 			{
 				data[z] = atof(buf);
 				z++;
@@ -7221,8 +7312,10 @@ void ExtractXYZCellGeometry9(const char *s) {
 		if (q > p) {
 			memcpy(buf,p,q-p);
 			buf[q-p] = 0;
-			data[z] = atof(buf);
-			z++;
+			if (IsValidFloat(buf)) {
+				data[z] = atof(buf);
+				z++;
+			}
 		}
 		if (*q == 0)
 			break;
@@ -7330,7 +7423,7 @@ void ExtractXYZCellGeometry3(const char *s)
 			memcpy(buf,p,q-p);
 			buf[q-p] = 0;
 //			mprintf("# buf = \"%s\".\n",buf);
-			if (atof(buf) != 0)
+			if (IsValidFloat(buf))
 			{
 				data[z] = atof(buf);
 				z++;
@@ -7379,6 +7472,12 @@ void ExtractXYZCellGeometry3(const char *s)
 	g_fBoxAngleC = 90.0;
 
 	g_fBoxMinDiam = MIN3(g_fBoxX,g_fBoxY,g_fBoxZ);
+
+	g_mBoxToOrtho = CxDMatrix3(g_mBoxFromOrtho);
+	if (!g_mBoxToOrtho.Invert()) {
+		eprintf("ExtractXYZCellGeometry3(): Error: Encountered singular cell matrix (cell volume is zero).\n");
+		abort();
+	}
 
 /*	if (g_bDoubleBox)
 	{
@@ -7545,7 +7644,7 @@ void RamanFromPolarizability(int argc, const char *argv[]) {
 	mprintf("\n");
 	mprintf(WHITE,"    ################################################\n");
 	mprintf(WHITE,"    ####    Raman from Polarizability Module    ####\n");
-	mprintf(WHITE,"    ####     (c) Martin Brehm, 2020 - 2021      ####\n");
+	mprintf(WHITE,"    ####     (c) Martin Brehm, 2020 - 2022      ####\n");
 	mprintf(WHITE,"    ####       https://brehm-research.de        ####\n");
 	mprintf(WHITE,"    ################################################\n\n");
 	mprintf("\n");
@@ -8125,6 +8224,7 @@ _begin:
 
 	sa.push_back( GetRevisionInfo_chargevar2( len ) );
 	sa.push_back( GetRevisionInfo_chiral( len ) );
+	sa.push_back( GetRevisionInfo_cluster( len ) );
 	sa.push_back( GetRevisionInfo_contactmatrix( len ) );
 	sa.push_back( GetRevisionInfo_cubetool( len ) );
 	sa.push_back( GetRevisionInfo_dacf( len ) );
@@ -8132,6 +8232,7 @@ _begin:
 	sa.push_back( GetRevisionInfo_df( len ) );
 	sa.push_back( GetRevisionInfo_diagonal( len ) );
 	sa.push_back( GetRevisionInfo_domain( len ) );
+	sa.push_back( GetRevisionInfo_dpol( len ) );
 	sa.push_back( GetRevisionInfo_elementdata( len ) );
 	sa.push_back( GetRevisionInfo_fdf( len ) );
 	sa.push_back( GetRevisionInfo_fft( len ) );
@@ -8273,6 +8374,7 @@ void CheckSourceVersion() {
 
 	if (strcmp( p, GetSourceVersion_chargevar2() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_chiral() ) != 0) b = true;
+	if (strcmp( p, GetSourceVersion_cluster() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_contactmatrix() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_cubetool() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_dacf() ) != 0) b = true;
@@ -8280,6 +8382,7 @@ void CheckSourceVersion() {
 	if (strcmp( p, GetSourceVersion_df() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_diagonal() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_domain() ) != 0) b = true;
+	if (strcmp( p, GetSourceVersion_dpol() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_elementdata() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_fdf() ) != 0) b = true;
 	if (strcmp( p, GetSourceVersion_fft() ) != 0) b = true;

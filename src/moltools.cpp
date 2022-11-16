@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -61,6 +61,8 @@ CAtom::CAtom()
 	m_bExclude = false;
 	m_pMergedTo = NULL;
 	m_iIndex = -1;
+	m_fCharge = 0;
+	m_fDefCharge = 0;
 }
 
 
@@ -5038,7 +5040,7 @@ _atoms:
 	m_iResolution = AskInteger("    Please enter the binning resolution for this VDF: [300] ",300);
 
 	if (g_bAdvanced2) {
-		m_bSplitCart = AskYesNo("    Write cartesian contributions (x, y, z, xy, xz, yz) of this VDF (y/n)? [no] ",false);
+		m_bSplitCart = AskYesNo("    Write Cartesian contributions (x, y, z, xy, xz, yz) of this VDF (y/n)? [no] ",false);
 		m_iHistogramRes = AskUnsignedInteger("    Please enter histogram resolution (0=no histogram): [0] ",0);
 	} else {
 		m_bSplitCart = false;
@@ -5048,7 +5050,7 @@ _atoms:
 	if (m_bSplitCart && (g_iFixMol != -1)) {
 		mprintf("\n");
 		mprintf(RED,"    Error:");
-		mprintf(" Writing cartesian contributions only works for pure VDFs (i.e., not part of a CDF).\n\n");
+		mprintf(" Writing Cartesian contributions only works for pure VDFs (i.e., not part of a CDF).\n\n");
 		AskYesNo("    Acknowledged [yes] ",true);
 		mprintf("\n");
 		m_bSplitCart = false;
@@ -6162,6 +6164,11 @@ CObservation::CObservation()
 	m_pCondDevelopment = NULL;
 	m_iCondDevelopmentMax = 0;
 	m_iCondDevelopmentAvg = 0;
+	m_bPercTimeDev = false;
+	m_pPercTimeDevFile = NULL;
+	m_bNormalizeCondition = false;
+	m_iNormalizeConditionCount = 0;
+	m_iNormalizeConditionLocalCount = 0;
 
 	m_waSaveRefList.SetName("CObservation::m_waSaveRefList");
 	m_waSaveShowList.SetName("CObservation::m_waSaveShowList");
@@ -6831,6 +6838,7 @@ void CMSD::BuildName()
 //			strcat(tmp,"Z");
 			tmp.strcat("Z");
 	}
+
 
 	try { m_sName = new char[strlen(tmp)+1]; } catch(...) { m_sName = NULL; }
 	if (m_sName == NULL) NewException((double)(strlen(tmp)+1)*sizeof(char),__FILE__,__LINE__,__PRETTY_FUNCTION__);

@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -53,8 +53,12 @@
 #include "tddf.h"
 #include "geodens.h"
 #include "aggrtopo.h"
+#include "cluster.h"
 
 
+
+
+#include "dpol.h"
 
 
 class CxString;
@@ -115,6 +119,7 @@ extern bool g_bVFHisto;
 extern unsigned short g_iHistogramRes;
 extern FILE *g_fRefTrajec, *g_fRefEnv, *g_fVRDF[32];
 extern CTimeStep *g_pTempTimestep;
+extern CTimeStep *g_pTempTimestepSnap;
 extern bool g_bFoldAtomwise;
 extern double g_fBondFactor;
 extern bool g_bSaveJustTraj;
@@ -396,6 +401,9 @@ extern bool g_bUnknownElements;
 
 extern bool g_bNeedMoleculeWrap;
 
+extern bool g_bClusterAnalysis;
+extern CClusterAnalysis *g_pClusterAnalysis;
+
 
 extern bool g_bAdvanced1;
 extern bool g_bAdvanced2;
@@ -660,6 +668,11 @@ extern bool g_bOrder;
 extern COrderEngine *g_pOrderEngine;
 
 
+//>>>GAMMA
+extern bool g_bReRa;
+//<<<GAMMA
+
+
 extern bool g_bTDDF;
 extern CTDDFEngine *g_pTDDFEngine;
 
@@ -702,6 +715,8 @@ extern bool g_bKuehneLong;
 
 extern int g_iCellVectorFileColumns;
 extern std::vector<std::string> g_saDCDRemarkLines;
+
+extern int g_iDCDAtomCount;
 
 #endif
 

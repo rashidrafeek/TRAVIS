@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -1505,6 +1505,27 @@ _celldefined:
 	_nextnoble:;
 			}
 		}
+	}
+
+	if (g_TimeStep.m_faCoreCharge.GetSize() != 0) {
+		mprintf("\n");
+		mprintf("    Analyzing core charges from input trajectory...\n");
+		for (z=0;z<g_TimeStep.m_paLabels.GetSize();z++) {
+			for (z2=0;z2<g_oaAtoms.GetSize()-1;z2++) {
+				if (((CAtom*)g_oaAtoms[z2])->m_pMergedTo != NULL)
+					continue;
+				if (mystricmp((const char*)g_TimeStep.m_paLabels[z],(const char*)((CAtom*)g_oaAtoms[z2])->m_sName) == 0) {
+					if (((CAtom*)g_oaAtoms[z2])->m_fDefCharge != 0)
+						break;
+					if (g_TimeStep.m_faCoreCharge[z] != 0) {
+						mprintf("      Setting core charge of atom \"%s\" to %.1f ...\n",(const char*)((CAtom*)g_oaAtoms[z2])->m_sName,g_TimeStep.m_faCoreCharge[z]);
+						((CAtom*)g_oaAtoms[z2])->m_fDefCharge = g_TimeStep.m_faCoreCharge[z];
+					}
+					break;
+				}
+			}
+		}
+		mprintf("\n");
 	}
 
 //	SAVEPOS;
@@ -3037,6 +3058,14 @@ _fncinput:
 	mprintf("\n");
 
 
+
+
+	if (g_bReRa) {
+		ReRa_Neu2();
+		return true;
+	}
+
+
 	if (g_bRegionAnalysis)
 	{
 		if (!(g_bRDF || g_bSDF || g_bADF || g_bDDF || g_bCDF || g_bRevSDF || g_bDens))
@@ -3296,6 +3325,14 @@ _entertype:
 	{
 		g_bRDynCacheMode = true;
 		g_bMSDCacheMode = true;
+	}
+
+	if (g_bClusterAnalysis)
+	{
+		try { g_pClusterAnalysis = new CClusterAnalysis(); } catch(...) { g_pClusterAnalysis = NULL; }
+		if (g_pClusterAnalysis == NULL) NewException((double)sizeof(CClusterAnalysis),__FILE__,__LINE__,__PRETTY_FUNCTION__);
+
+		g_pClusterAnalysis->Parse();
 	}
 
 
@@ -4208,7 +4245,7 @@ _obsmol2again:
 						o->ListCDFObservations(z);
 						mprintf("\n");
 					}
-					if (o->m_pCDF->m_iCombinations[0] == o->m_pCDF->m_iCombinations[1])
+					if ((o->m_pCDF->m_iCombinations[0] == o->m_pCDF->m_iCombinations[1]) && !o->m_bSecondShowMol)
 					{
 						if (AskYesNo("    Combine n-th with n-th observation? (y/n) [yes] ",true))
 						{
@@ -4427,6 +4464,133 @@ _3combdone:
 					o->m_pCDF->m_fNormValue = AskFloat("    Set CDF integral to which value? [1000000] ",1000000.0);
 				if (o->m_pCDF->m_iNormalize == 2)
 					o->m_pCDF->m_fNormValue = AskFloat("    Set maximum entry to which value? [100] ",100.0);
+
+				mprintf("\n");
+				o->m_pCDF->m_bWriteSnapshots = AskYesNo("    Write/count geometry snapshots for bin entries in given value range (y/n)? [no] ",false);
+
+				if (o->m_pCDF->m_bWriteSnapshots) {
+
+					g_bKeepOriginalCoords = true;
+
+					mprintf("\n");
+
+					mprintf("    Please enter the interval (rectangle) in which the bin entries need to be located for a snapshot to be written.\n\n");
+
+					for (z=0;z<g_iCDFChannels;z++) {
+
+_cdfsnapvalagain:
+						switch( g_iObsChannel[z] ) {
+							case 0:
+								tf  = AskFloat_ND("    Enter minimal distance for CDF channel %d to consider (in pm): ",z+1);
+								tf2 = AskFloat_ND("    Enter maximal distance for CDF channel %d to consider (in pm): ",z+1);
+								break;
+							case 1:
+								tf  = AskFloat_ND("    Enter minimal angle for CDF channel %d to consider (in Degree): ",z+1);
+								tf2 = AskFloat_ND("    Enter maximal angle for CDF channel %d to consider (in Degree): ",z+1);
+								break;
+							case 2:
+								tf  = AskFloat_ND("    Enter minimal dihedral angle for CDF channel %d to consider (in Degree): ",z+1);
+								tf2 = AskFloat_ND("    Enter maximal dihedral angle for CDF channel %d to consider (in Degree): ",z+1);
+								break;
+							case 3:
+								tf  = AskFloat_ND("    Enter minimal dipole moment for CDF channel %d to consider (in Debye): ",z+1);
+								tf2 = AskFloat_ND("    Enter maximal dipole moment for CDF channel %d to consider (in Debye): ",z+1);
+								break;
+							case 4:
+								tf  = AskFloat_ND("    Enter minimal velocity for CDF channel %d to consider (in pm ps^-1): ",z+1);
+								tf2 = AskFloat_ND("    Enter maximal velocity for CDF channel %d to consider (in pm ps^-1): ",z+1);
+								break;
+							case 5:
+								tf  = AskFloat_ND("    Enter minimal plane distance for CDF channel %d to consider (in pm): ",z+1);
+								tf2 = AskFloat_ND("    Enter maximal plane distance for CDF channel %d to consider (in pm): ",z+1);
+								break;
+							case 6:
+								tf  = AskFloat_ND("    Enter minimal line distance for CDF channel %d to consider (in pm): ",z+1);
+								tf2 = AskFloat_ND("    Enter maximal line distance for CDF channel %d to consider (in pm): ",z+1);
+								break;
+						}
+
+						if (tf >= tf2) {
+							eprintf("Error: Invalid input.\n");
+							mprintf("Minimal value needs to be smaller than maximal value.\n");
+							goto _cdfsnapvalagain;
+						}
+
+						o->m_pCDF->m_faWriteSnapshotsRange.push_back( tf );
+						o->m_pCDF->m_faWriteSnapshotsRange.push_back( tf2 );
+					}
+
+					mprintf("\n");
+
+					o->m_pCDF->m_bWriteSnapshotsNoWrite = !AskYesNo("    Actually write snapshots (y), or only count configurations (n)? [yes] ",true);
+
+					if (!o->m_pCDF->m_bWriteSnapshotsNoWrite) {
+
+						o->m_pCDF->m_iWriteSnapshotStride = AskUnsignedInteger("    Write only every n-th snapshot to file: [1] ",1);
+						o->m_pCDF->m_bWriteSnapshotsOnlyRMOM = AskYesNo("    Write only reference molecule and observed molecule (y), or whole box (n)? [yes] ",true);
+						
+						if (o->m_pCDF->m_bWriteSnapshotsOnlyRMOM) {
+
+							o->m_pCDF->m_bWriteSnapshotsCenterRM = AskYesNo("    Center the reference molecule in the snapshot sequence (y/n)? [yes] ",true);
+
+							if (o->m_pCDF->m_bWriteSnapshotsCenterRM) {
+
+								o->m_pCDF->m_bWriteSnapshotsFixRM = AskYesNo("    Fix the rotation of the reference molecule in the snapshot sequence (y/n)? [no] ",false);
+
+								if (o->m_pCDF->m_bWriteSnapshotsFixRM) {
+									mprintf("\n");
+									mprintf("    You need to specify three atoms to fix from the reference molecule %s to fix the rotation.\n",((CMolecule*)g_oaMolecules[g_iFixMol])->m_sName);
+									mprintf("    The first atom will be put into the coordinate origin in the snapshot trajectory.\n");
+									mprintf("    The second atom will pe put onto the positive X axis of the coordinate system.\n");
+									mprintf("    The third atom will pe put into the X-Y plane with positive Y value.\n\n");
+_cdfsnapf1:
+									AskString("    Please enter the first atom to fix (e.g. \"C5\"): [#2] ",&buf,"#2");
+									if (!ParseAtom((const char*)buf,g_iFixMol,o->m_pCDF->m_iWriteSnapshotFixType[0],ti,o->m_pCDF->m_iWriteSnapshotFixAtom[0])) {
+										eprintf("Error: Invalid input.\n");
+										goto _cdfsnapf1;
+									}
+_cdfsnapf2:
+									AskString_ND("    Please enter the second atom to fix (e.g. \"C5\"):     ",&buf);
+									if (!ParseAtom((const char*)buf,g_iFixMol,o->m_pCDF->m_iWriteSnapshotFixType[1],ti,o->m_pCDF->m_iWriteSnapshotFixAtom[1])) {
+										eprintf("Error: Invalid input.\n");
+										goto _cdfsnapf2;
+									}
+_cdfsnapf3:
+									AskString_ND("    Please enter the third atom to fix (e.g. \"C5\"):      ",&buf);
+									if (!ParseAtom((const char*)buf,g_iFixMol,o->m_pCDF->m_iWriteSnapshotFixType[2],ti,o->m_pCDF->m_iWriteSnapshotFixAtom[2])) {
+										eprintf("Error: Invalid input.\n");
+										goto _cdfsnapf3;
+									}
+
+								} else {
+_cdfsnapf4:
+									AskString("    Which atom to center from reference molecule %s (e.g. \"C5\")? [#2] ",&buf,"#2",((CMolecule*)g_oaMolecules[g_iFixMol])->m_sName);
+									if (!ParseAtom((const char*)buf,g_iFixMol,o->m_pCDF->m_iWriteSnapshotFixType[0],ti,o->m_pCDF->m_iWriteSnapshotFixAtom[0])) {
+										eprintf("Error: Invalid input.\n");
+										goto _cdfsnapf4;
+									}
+								}
+								o->m_pCDF->m_bWriteSnapshotsOriginalCoords = false;
+							} else {
+								o->m_pCDF->m_bWriteSnapshotsOriginalCoords = AskYesNo("    Write original (input trajectory) coordinates (y/n)? [no] ",false);
+							}
+
+						} else {
+
+							o->m_pCDF->m_bWriteSnapshotsCenterRM = false;
+							o->m_pCDF->m_bWriteSnapshotsFixRM = false;
+							o->m_pCDF->m_bWriteSnapshotsOriginalCoords = AskYesNo("    Write original (input trajectory) coordinates (y/n)? [no] ",false);
+						}
+					}
+
+					o->m_pCDF->m_bWriteSnapshotDone = false;
+					o->m_pCDF->m_iWriteSnapshotsTotalWritten = 0;
+					o->m_pCDF->m_iWriteSnapshotsTotalCounter = 0;
+					o->m_pCDF->m_iWriteSnapshotsTotalPerRM = 0;
+					o->m_pCDF->m_bWriteSnapshotsTempRM = false;
+					o->m_pCDF->m_iWriteSnapshotCounter = 0;
+				}
+
 			} else
 			{
 				o->m_pCDF->m_bDumpDat = false;
@@ -4435,6 +4599,7 @@ _3combdone:
 			}
 
 			mprintf(BLUE,"\n<<< End of Combined Distribution Function <<<\n\n");
+
 		} else
 		{
 			if (g_bRDF)
@@ -4700,6 +4865,19 @@ _3combdone:
 				o->m_bTimeDev = false;
 				o->m_bTimeDiff = false;
 			}
+
+			if (g_bAdvanced2 && (g_bRDF || g_bADF || g_bDDF)) {
+				if (AskYesNo("    Create a fraction temporal development plot (y/n)? ",false)) {
+					o->m_bPercTimeDev = true;
+					mprintf("\n");
+					o->m_fPercTimeDevMin = AskFloat_ND("    Enter minimal histogram value to be counted: ");
+					o->m_fPercTimeDevMax = AskFloat_ND("    Enter maximal histogram value to be counted: ");
+					mprintf("\n");
+				} else
+					o->m_bPercTimeDev = false;
+			} else
+				o->m_bPercTimeDev = false;
+
 		} else
 		{
 			o->m_bTimeDev = false;
@@ -4804,8 +4982,14 @@ _nobinonly:
 				if (o->m_bCondDevelopment)
 					o->m_iCondDevelopmentMax = AskUnsignedInteger("    Record development up to how many OMs per RM? [6] ",6);
 
+				if (g_bRDF || g_bPlProj) {
+					mprintf("\n");
+					o->m_bNormalizeCondition = AskYesNo("    Adapt normalization to RMs which passed the condition (y/n)? [yes] ",true);
+				} else
+					o->m_bNormalizeCondition = false;
+
 				mprintf(GREEN,"\n<<< End of Condition input <<<\n\n");
-			}
+			} // END if add condition
 		}
 
 		if (g_bVACF)

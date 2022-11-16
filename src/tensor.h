@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -135,12 +135,16 @@ public:
 	}
 
 	CDTensor1& operator *= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] *= f;
 		return *this;
 	}
 
 	CDTensor1& operator /= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] /= f;
 		return *this;
 	}
 
@@ -298,12 +302,16 @@ public:
 	}
 
 	CDTensor2& operator *= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] *= f;
 		return *this;
 	}
 
 	CDTensor2& operator /= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] /= f;
 		return *this;
 	}
 
@@ -493,12 +501,16 @@ public:
 	}
 
 	CDTensor3& operator *= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] *= f;
 		return *this;
 	}
 
 	CDTensor3& operator /= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] /= f;
 		return *this;
 	}
 
@@ -748,12 +760,16 @@ public:
 	}
 
 	CDTensor4& operator *= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::multiplies<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] *= f;
 		return *this;
 	}
 
 	CDTensor4& operator /= (double f) {
-		std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		//std::transform(m_pData.begin(),m_pData.end(),m_pData.begin(),std::bind1st(std::divides<double>(), f));
+		for (unsigned long z=0;z<m_pData.size();z++)
+			m_pData[z] /= f;
 		return *this;
 	}
 

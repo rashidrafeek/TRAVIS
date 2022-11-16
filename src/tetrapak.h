@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -48,7 +48,16 @@
 #define VORI_EPS 1.0E-11
 
 
+extern int glv_iRayNonConv;
+extern int glv_iRayFail;
+extern bool glv_bJitter;
+extern int glv_iJitterSeed;
+extern double glv_fJitterAmplitude;
+
+
+
 void DumpMolecularProps();
+
 
 
 class CTetraPak : public CxObject
@@ -58,12 +67,12 @@ public:
 	~CTetraPak();
 	void Parse();
 	bool ParseSilent(CTimeStep *ts);
-	bool BuildVoronoi(CTimeStep *ts, bool verbose, bool sanity, bool sanityall=false);
+	bool BuildVoronoi(CTimeStep *ts, int verbose, bool sanity, bool sanityall=false);
 	void BuildVoronoiBuffer(CTimeStep *ts);
 // 	VORI_FLOAT Integrate(C3DF<VORI_FLOAT> *df, double mi[2], double ma[2]);
 	VORI_FLOAT Integrate_Refine(C3DF<VORI_FLOAT> *df, double mi[2], double ma[2]);
 	void Integrate_Verbose(C3DF<VORI_FLOAT> *df, double mi[2], double ma[2]);
-	void ProcessStep(CTimeStep *ts, bool verbose);
+	void ProcessStep(CTimeStep *ts, int verbose);
 	
 	CxObArray m_oaFaces;
 	CxObArray m_oaVoroBuffer;

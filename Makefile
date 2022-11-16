@@ -2,9 +2,9 @@
 #    TRAVIS - Trajectory Analyzer and Visualizer
 #    http://www.travis-analyzer.de/
 #
-#    Copyright (c) 2009-2021 Martin Brehm
-#                  2012-2021 Martin Thomas
-#                  2016-2021 Sascha Gehrke
+#    Copyright (c) 2009-2022 Martin Brehm
+#                  2012-2022 Martin Thomas
+#                  2016-2022 Sascha Gehrke
 #
 #    This file written by Martin Brehm.
 #

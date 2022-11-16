@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -39,7 +39,7 @@
 
 
 // Last change to this version of the source code
-#define SOURCE_VERSION "May 21 2021"
+#define SOURCE_VERSION "Jul 29 2022"
 
 /* Please uncomment / comment out the flags you want to use / not to use. */
 
@@ -225,6 +225,8 @@ const char *GetRevisionInfo_chargevar2(unsigned int len);
 const char *GetSourceVersion_chargevar2();
 const char *GetRevisionInfo_chiral(unsigned int len);
 const char *GetSourceVersion_chiral();
+const char *GetRevisionInfo_cluster(unsigned int len);
+const char *GetSourceVersion_cluster();
 const char *GetRevisionInfo_contactmatrix(unsigned int len);
 const char *GetSourceVersion_contactmatrix();
 const char *GetRevisionInfo_cubetool(unsigned int len);
@@ -239,6 +241,8 @@ const char *GetRevisionInfo_diagonal(unsigned int len);
 const char *GetSourceVersion_diagonal();
 const char *GetRevisionInfo_domain(unsigned int len);
 const char *GetSourceVersion_domain();
+const char *GetRevisionInfo_dpol(unsigned int len);
+const char *GetSourceVersion_dpol();
 const char *GetRevisionInfo_elementdata(unsigned int len);
 const char *GetSourceVersion_elementdata();
 const char *GetRevisionInfo_fdf(unsigned int len);

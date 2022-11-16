@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -1400,7 +1400,7 @@ bool CROAEngine::Parse() {
 		g_bVoroIntegrateMagneticMoment = false;
 		g_bCubeTimeDev = false;
 
-		g_pTetraPak->ProcessStep(m_oaTrajectories[0]->GetTimeStep(1),true);
+		g_pTetraPak->ProcessStep(m_oaTrajectories[0]->GetTimeStep(1),2);
 		m_oaTrajectories[0]->GetTimeStep(1)->CalcDipoles(false);
 
 		mprintf("\n");
@@ -1712,7 +1712,7 @@ bool CROAEngine::Parse() {
 		mprintf("\n");
 		for (z=0;z<(int)m_oaTrajectories.size();z++) {
 			mprintf("    Trajectory %d: ",z+1);
-			g_pTetraPak->ProcessStep(m_oaTrajectories[z]->GetTimeStep(1),false);
+			g_pTetraPak->ProcessStep(m_oaTrajectories[z]->GetTimeStep(1),0);
 			m_oaTrajectories[z]->GetTimeStep(1)->CalcDipoles(false);
 			CMolecule *m = (CMolecule *)g_oaMolecules[0];
 			mprintf("( %12.8f | %12.8f | %12.8f ) Debye.\n",
@@ -1981,7 +1981,7 @@ void CROAEngine::MainLoop_Combined() {
 			ts = tr->GetTimeStep(0);
 
 			mprintf("      Integrating...\n");
-			g_pTetraPak->ProcessStep(ts,false);
+			g_pTetraPak->ProcessStep(ts,1);
 
 			if (m_bMagMom)
 				ts->CalcCenterVelocities();
@@ -2545,7 +2545,7 @@ void CROAEngine::MainLoop_Gather() {
 		ts = m_oaTrajectories[0]->GetTimeStep(0);
 
 		mprintf("      Integrating...\n");
-		g_pTetraPak->ProcessStep(ts,false);
+		g_pTetraPak->ProcessStep(ts,1);
 
 		if (m_bGatherWriteCSV) {
 			for (z=0;z<g_iGesAtomCount;z++) {
@@ -5018,6 +5018,7 @@ void CROAEngine::WriteSpectrumSFG(CROAObservation *obs, const std::vector<double
 	int z;
 	FILE *a;
 	CxString buf;
+	double f;
 
 
 	buf.sprintf("spectrum_%s%s%s",(const char*)obs->m_sTypeName,name,(const char*)obs->m_sMolName);
@@ -5034,16 +5035,31 @@ void CROAEngine::WriteSpectrumSFG(CROAObservation *obs, const std::vector<double
 	else
 		mfprintf(a, "#Wavenumber (cm^-1)");
 
-	mfprintf(a,";  Spectrum Re;  Spectrum Im;  Spectrum Re^2;  Spectrum Im^2;  Spectrum Abs^2\n");
+	mfprintf(a,";  Spectrum Re;  Spectrum Im;  Spectrum Re^2;  Spectrum Im^2;  Spectrum Abs^2;  Spectrum -i.Re/w;  Spectrum -i.Im/w\n");
 
 	for (z=0;z<obs->m_iSpecLength;z++) {
 
 		if (obs->m_bCorrectFrequency)
-			mfprintf(a, "%.2f", CorrectWavenumber(obs->m_fSpecResolution * z) );
+			f = CorrectWavenumber( obs->m_fSpecResolution * z );
 		else
-			mfprintf(a, "%.2f", obs->m_fSpecResolution * z );
+			f = obs->m_fSpecResolution * z;
 
-		mfprintf(a, ";  %.8G;  %.8G;  %.8G;  %.8G;  %.8G\n", spectrumre[z], spectrumim[z], SQR(spectrumre[z]), SQR(spectrumim[z]), SQR(spectrumre[z])+SQR(spectrumim[z]) );
+		if (obs->m_bCorrectFrequency)
+			mfprintf(a, "%.2f", f );
+		else
+			mfprintf(a, "%.2f", f );
+
+		mfprintf(
+			a,
+			";  %.8G;  %.8G;  %.8G;  %.8G;  %.8G;  %.8G;  %.8G\n",
+			spectrumre[z],
+			spectrumim[z],
+			SQR(spectrumre[z]),
+			SQR(spectrumim[z]),
+			SQR(spectrumre[z])+SQR(spectrumim[z]),
+			(f==0)?0.0:(spectrumim[z]/f),
+			(f==0)?0.0:(-spectrumre[z]/f)
+		);
 	}
 
 	fclose(a);

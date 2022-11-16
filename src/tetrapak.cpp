@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -63,6 +63,13 @@ static char *g_cubeMemFileNameFixed = NULL;
 static int g_cubeMemFileIndex = 1;
 static int g_cubeMemFileStride = 1;
 
+int glv_iRayNonConv = 0;
+int glv_iRayFail = 0;
+bool glv_bJitter = false;
+int glv_iJitterSeed = 0;
+double glv_fJitterAmplitude = 1.0E-3;
+
+
 
 CTetraPak::CTetraPak()
 {
@@ -95,8 +102,9 @@ void CTetraPak::Parse()
 	mprintf(WHITE,"\n>>> Voronoi Integration Functions >>>\n\n");
 
 	if (!g_bVolumetricData) {
-		eprintf("    Error: This requires volumetric electron density data in each step of the trajectory (.cube or .bqb).\n\n");
-		abort();
+		mprintf(RED,"    Warning: ");
+		mprintf("This requires volumetric electron density data in each step of the trajectory (.cube or .bqb).\n");
+		mprintf("             You can only run a sanity check with a non-volumetric trajectory.\n\n");
 	}
 
 	mprintf("    Initializing Voronoi tesselation...\n");
@@ -147,6 +155,13 @@ void CTetraPak::Parse()
 
 	mprintf("\n    Performing sanity check...\n\n");
 
+	if (g_bAdvanced2)
+	{
+		sanityall = AskYesNo("    Perform sanity check for first time step (n) or for all steps in trajectory (y)? [no] ",false);
+		mprintf("\n");
+	} else
+		sanityall = false;
+
 	m_p3DF = new C3DF<VORI_FLOAT>();
 
 	if (g_TimeStep.m_pVolumetricData != NULL)
@@ -160,13 +175,22 @@ void CTetraPak::Parse()
 		mprintf("    Input trajectory contains volumetric data. Using grid of %d x %d x %d.\n",rx,ry,rz);
 	} else
 	{
-		rx = 100;
-		ry = 100;
-		rz = 100;
+		if (g_bAdvanced2 && sanityall) {
+			mprintf("    Input trajectory does not contain volumetric data. Which grid resolution to use for sanity check?\n\n");
+			rx = AskUnsignedInteger("    Enter X grid resolution: [100] ",100);
+			ry = AskUnsignedInteger("    Enter Y grid resolution: [100] ",100);
+			rz = AskUnsignedInteger("    Enter Z grid resolution: [100] ",100);
+		} else {
+			mprintf("    Input trajectory does not contain volumetric data. Using grid of 100 x 100 x 100.\n");
+			if (sanityall)
+				mprintf("    These values can be modified in advanced mode.\n");
+			rx = 100;
+			ry = 100;
+			rz = 100;
+		}
 	 	m_p3DF->m_fMaxVal[0] = g_fBoxX;
 	 	m_p3DF->m_fMaxVal[1] = g_fBoxY;
 	 	m_p3DF->m_fMaxVal[2] = g_fBoxZ;
-		mprintf("    Input trajectory does not contain volumetric data. Using grid of 100 x 100 x 100.\n");
 	}
 
 	m_p3DF->m_iRes[0] = rx;
@@ -190,12 +214,6 @@ void CTetraPak::Parse()
 	if (m_hitCount == NULL) NewException((double)sizeof(int) * rx * ry * rz * m_iInterpolationFactorCube, __FILE__, __LINE__, __PRETTY_FUNCTION__);
 	memset(m_hitCount, 0, rx * ry * rz * m_iInterpolationFactorCube * sizeof(int));
 
-	if (g_bAdvanced2)
-	{
-		mprintf("\n");
-		sanityall = AskYesNo("    Perform sanity check for first time step (n) or for all steps in trajectory (y)? [no] ",false);
-	} else
-		sanityall = false;
 
 	if (sanityall)
 	{
@@ -229,7 +247,7 @@ void CTetraPak::Parse()
 			for (z = 0; z < rx * ry * rz * m_iInterpolationFactorCube; z++)
 				m_hitCount[z] = 0;
 
-			if (!BuildVoronoi(t,true,true,true))
+			if (!BuildVoronoi(t,1,true,true))
 			{
 				eprintf("\n    Sanity check failed.\n\n");
 				if (!AskYesNo("    This should not have happened. Continue anyway (y/n)? [yes] ",true))
@@ -241,7 +259,7 @@ void CTetraPak::Parse()
 		exit(0);
 	} else
 	{
-		if (!BuildVoronoi(t,true,true))
+		if (!BuildVoronoi(t,2,true))
 		{
 			eprintf("\n    Sanity check failed.\n\n");
 			if (!AskYesNo("    This should not have happened. Continue anyway (y/n)? [yes] ",true))
@@ -258,6 +276,11 @@ void CTetraPak::Parse()
 	delete m_p3DF;
 	
 	delete[] m_hitCount;
+
+	if (!g_bVolumetricData) {
+		eprintf("    Error: Voronoi integration requires volumetric electron density data in each step of the trajectory (.cube or .bqb).\n\n");
+		abort();
+	}
 
 	if (g_bAdvanced2) {
 		if (AskYesNo("    Compute Voronoi charges from a single electron density cube file (y/n)? [no] ",false))
@@ -289,7 +312,7 @@ _n2:
 				m_faCoreCharge[z] = 0;
 			}
 
-			BuildVoronoi(t,true,false);
+			BuildVoronoi(t,2,false);
 
 			mprintf("    Done.\n\n    Results:\n");
 
@@ -506,7 +529,7 @@ bool CTetraPak::ParseSilent(CTimeStep *ts)
 	if (m_hitCount == NULL) NewException((double)sizeof(int) * rx * ry * rz * m_iInterpolationFactorCube, __FILE__, __LINE__, __PRETTY_FUNCTION__);
 	memset(m_hitCount, 0, rx * ry * rz * m_iInterpolationFactorCube * sizeof(int));
 
-	if (!BuildVoronoi(t,true,true)) {
+	if (!BuildVoronoi(t,2,true)) {
 		eprintf("\n    Sanity check failed.\n\n");
 		if (!AskYesNo("    This should not have happened. Continue anyway (y/n)? [yes] ",true))
 			abort();
@@ -565,18 +588,19 @@ bool CTetraPak::ParseSilent(CTimeStep *ts)
 }
 
 
-void CTetraPak::ProcessStep(CTimeStep *ts, bool verbose)
+void CTetraPak::ProcessStep(CTimeStep *ts, int verbose)
 {
 	int z;
 	double su;
 	CTimeStep temp;
-	
 	double integralFactor;
-	if (g_bBoxNonOrtho) {
+
+
+	if (g_bBoxNonOrtho)
 		integralFactor = g_fCubeXVector[0] * g_fCubeYVector[1] * g_fCubeZVector[2] + g_fCubeXVector[1] * g_fCubeYVector[2] * g_fCubeZVector[0] + g_fCubeXVector[2] * g_fCubeYVector[0] * g_fCubeZVector[1] - g_fCubeXVector[0] * g_fCubeYVector[2] * g_fCubeZVector[1] - g_fCubeXVector[1] * g_fCubeYVector[0] * g_fCubeZVector[2] - g_fCubeXVector[2] * g_fCubeYVector[1] * g_fCubeZVector[0];
-	} else {
+	else
 		integralFactor = g_fCubeXStep * g_fCubeYStep * g_fCubeZStep;
-	}
+
 
 	if (m_bVoronoiCharges)
 	{
@@ -816,7 +840,7 @@ void CTetraPak::ProcessStep(CTimeStep *ts, bool verbose)
 					}
 				}
 				
-				if (verbose) {
+				if (verbose > 1) {
 					mprintf("    Volumetric electron density data read from cube file:\n");
 					mprintf("      Cube file has %d x %d x %d grid points.\n",m_p3DF->m_iRes[0],m_p3DF->m_iRes[1],m_p3DF->m_iRes[2]);
 	// 				mprintf("      Sum is %.3f, equals %.6f electrons.\n",su,su*(g_fBoxX/100.0/0.529177249/m_p3DF->m_iRes[0])*(g_fBoxY/100.0/0.529177249/m_p3DF->m_iRes[1])*(g_fBoxZ/100.0/0.529177249/m_p3DF->m_iRes[2]));
@@ -863,9 +887,9 @@ void CTetraPak::ProcessStep(CTimeStep *ts, bool verbose)
 
 			if (m_p3DF == NULL) {
 				m_p3DF = new C3DF<VORI_FLOAT>();
-				m_p3DF->ReadCube(m_fCubePipe,verbose,true);
+				m_p3DF->ReadCube(m_fCubePipe,(verbose>1),true);
 			} else
-				m_p3DF->ReadCube(m_fCubePipe,verbose,false);
+				m_p3DF->ReadCube(m_fCubePipe,(verbose>1),false);
 
 		}
 
@@ -874,8 +898,14 @@ void CTetraPak::ProcessStep(CTimeStep *ts, bool verbose)
 			m_faCoreCharge[z] = 0;
 		}
 
-		if (verbose)
-			mprintf("\n    Integrating over electron density grid...\n");
+		if (verbose > 1) {
+			mprintf("\n");
+			if (glv_bJitter)
+				mprintf("    Using position jitter of %.3f pm (seed %d).\n",glv_fJitterAmplitude*100.0,glv_iJitterSeed);
+			else
+				mprintf("    Not using position jitter.\n");
+			mprintf("    Integrating over electron density grid...\n");
+		}
 
 		BuildVoronoi(&temp,verbose,false);
 		
@@ -916,7 +946,7 @@ void CTetraPak::ProcessStep(CTimeStep *ts, bool verbose)
 				
 // 						mprintf("%s %f\n", ((CAtom*)g_oaAtoms[g_waAtomRealElement[z]])->m_sName, m_faCharge[z]);
 
-			if (m_bSaveAtomIntegrals && !verbose) {
+			if (m_bSaveAtomIntegrals && (verbose <= 1)) {
 
 				mfprintf(m_fAtomIntegralFile,"%5lu; %6d; %-3s",g_iSteps+1,z+1,(const char*)((CAtom*)g_oaAtoms[g_waAtomRealElement[z]])->m_sName);
 
@@ -989,7 +1019,7 @@ void CTetraPak::ProcessStep(CTimeStep *ts, bool verbose)
 }
 
 
-bool CTetraPak::BuildVoronoi(CTimeStep *ts, bool verbose, bool sanity, bool sanityall)
+bool CTetraPak::BuildVoronoi(CTimeStep *ts, int verbose, bool sanity, bool sanityall)
 {
 	voronoicell_neighbor c;
 	container_periodic_poly *con;
@@ -1002,8 +1032,11 @@ bool CTetraPak::BuildVoronoi(CTimeStep *ts, bool verbose, bool sanity, bool sani
 	vector<double> fare;
 	CTetraFace *fa;
 	double tfx, tfy, tfz, lastvert[2];
-	double mi[2], ma[2];
+	double totecharge, gridsum;
+	double mi[2], ma[2], tf=0;
 	bool b;
+	double integralFactor;
+
 
 	b = true;
 
@@ -1019,7 +1052,7 @@ bool CTetraPak::BuildVoronoi(CTimeStep *ts, bool verbose, bool sanity, bool sani
 			abort();
 		}
 
-		if (sanity) {
+		if (sanity && (verbose > 1)) {
 			mprintf("\n    Using the following cell matrix for Voronoi tessellation:\n");
 			mprintf("      A ( %12.6f | %12.6f | %12.6f )\n",g_mCubeCell(0,0),g_mCubeCell(0,1),g_mCubeCell(0,2));
 			mprintf("      B ( %12.6f | %12.6f | %12.6f )\n",g_mCubeCell(1,0),g_mCubeCell(1,1),g_mCubeCell(1,2));
@@ -1031,7 +1064,7 @@ bool CTetraPak::BuildVoronoi(CTimeStep *ts, bool verbose, bool sanity, bool sani
 
 	} else {
 
-		if (sanity) {
+		if (sanity && (verbose > 1)) {
 			mprintf("\n    Using the following orthorhombic cell dimensions for Voronoi tessellation:\n");
 			mprintf("      ( %12.6f | %12.6f | %12.6f )\n\n",m_p3DF->m_fMaxVal[0],m_p3DF->m_fMaxVal[1],m_p3DF->m_fMaxVal[2]);
 		}
@@ -1042,9 +1075,37 @@ bool CTetraPak::BuildVoronoi(CTimeStep *ts, bool verbose, bool sanity, bool sani
 	}
 	if (con == NULL) NewException((double)sizeof(container_periodic_poly),__FILE__,__LINE__,__PRETTY_FUNCTION__);
 
+	if (g_bBoxNonOrtho)
+		integralFactor = g_fCubeXVector[0] * g_fCubeYVector[1] * g_fCubeZVector[2] + g_fCubeXVector[1] * g_fCubeYVector[2] * g_fCubeZVector[0] + g_fCubeXVector[2] * g_fCubeYVector[0] * g_fCubeZVector[1] - g_fCubeXVector[0] * g_fCubeYVector[2] * g_fCubeZVector[1] - g_fCubeXVector[1] * g_fCubeYVector[0] * g_fCubeZVector[2] - g_fCubeXVector[2] * g_fCubeYVector[1] * g_fCubeZVector[0];
+	else
+		integralFactor = g_fCubeXStep * g_fCubeYStep * g_fCubeZStep;
+
+	// Jitter needs to be identical in each frame to reduce noise
+	if (glv_bJitter)
+		srand( glv_iJitterSeed );
+
 	for (z=0;z<g_iGesAtomCount;z++) {
-		con->put(z,ts->m_vaCoords[z][0]/1000.0,ts->m_vaCoords[z][1]/1000.0,ts->m_vaCoords[z][2]/1000.0,g_faVoronoiRadii[z]/1000.0);
- 		//mprintf(GREEN, "%d %.20g %.20g %.20g %.20g\n", z+1, ts->m_vaCoords[z][0]/1000.0, ts->m_vaCoords[z][1]/1000.0, ts->m_vaCoords[z][2]/1000.0, g_faVoronoiRadii[z]/1000.0);
+
+		if (glv_bJitter)
+			con->put(
+				z,
+				(ts->m_vaCoords[z][0] + (((rand()%5000)+5000)/10000.0*((rand()%2)==0?1:-1))*glv_fJitterAmplitude*100.0)/1000.0,
+				(ts->m_vaCoords[z][1] + (((rand()%5000)+5000)/10000.0*((rand()%2)==0?1:-1))*glv_fJitterAmplitude*100.0)/1000.0,
+				(ts->m_vaCoords[z][2] + (((rand()%5000)+5000)/10000.0*((rand()%2)==0?1:-1))*glv_fJitterAmplitude*100.0)/1000.0,
+				g_faVoronoiRadii[z]/1000.0
+			);
+		else
+			con->put(
+				z,
+				ts->m_vaCoords[z][0]/1000.0,
+				ts->m_vaCoords[z][1]/1000.0,
+				ts->m_vaCoords[z][2]/1000.0,
+				g_faVoronoiRadii[z]/1000.0
+			);
+
+		//con->put(z,ts->m_vaCoords[z][0]/1000.0,ts->m_vaCoords[z][1]/1000.0,ts->m_vaCoords[z][2]/1000.0,g_faVoronoiRadii[z]/1000.0);
+ 
+		//mprintf(GREEN, "%d %.20g %.20g %.20g %.20g\n", z+1, ts->m_vaCoords[z][0]/1000.0, ts->m_vaCoords[z][1]/1000.0, ts->m_vaCoords[z][2]/1000.0, g_faVoronoiRadii[z]/1000.0);
 	}
 	
 	c_loop_all_periodic vl(*con);
@@ -1060,20 +1121,28 @@ bool CTetraPak::BuildVoronoi(CTimeStep *ts, bool verbose, bool sanity, bool sani
 			mprintf("\n    Voronoi decomposition and integration over grid:\n");
 	}
 
-	if (verbose)
-		mprintf(WHITE,"      [");
+	if (verbose > 0) {
+		if (sanity && sanityall)
+			mprintf(WHITE," [");
+		else
+			mprintf(WHITE,"      [");
+	}
 	
+	totecharge = 0;
 	m_fRayCount = 0;
 	m_fRayHisto[0] = 0;
 	m_fRayHisto[1] = 0;
 	m_fRayHisto[2] = 0;
 	m_fRayHisto[3] = 0;
+	glv_iRayNonConv = 0;
+	glv_iRayFail = 0;
 	cc = 0;
+
 	if (vl.start()) 
 	{
 		do 
 		{
-			if (verbose)
+			if (verbose > 0)
 				if (fmod(cc,g_iGesAtomCount/60.0) < 1.0)
 					mprintf(WHITE,"#");
 
@@ -1414,6 +1483,7 @@ _done:;
 				double charge;
 				CxDVector3 dipoleMoment, totalCurrent, magneticMoment;
 				CxDMatrix3 quadrupoleMoment;
+
 				if (sanity) {
 // 					Integrate_Verbose(m_p3DF,mi,ma);
 					integrateCell(m_p3DF, ts->m_pCurrentDensity, mi, ma, pp, &charge, &dipoleMoment, &quadrupoleMoment, &totalCurrent, &magneticMoment, true/*, id*/);
@@ -1425,8 +1495,10 @@ _done:;
 
 					m_faVolume[id] = curvol * 1.0e6; // in pm^3
 
-					if (g_bVoroIntegrateCharge)
+					if (g_bVoroIntegrateCharge) {
 						m_faCharge[id] -= charge;
+						totecharge += charge * integralFactor;
+					}
 					if (g_bVoroIntegrateDipoleMoment) {
 						m_moments[id] = dipoleMoment;
 						m_chargeCenters[id] = dipoleMoment / (-charge);
@@ -1483,10 +1555,48 @@ _done:;
 
 	}
 
-	if (verbose)
+	if (verbose > 0)
 	{
 		mprintf(WHITE,"]");
-		mprintf(" done.\n");
+		if (verbose > 1)
+			mprintf(" done.");
+		mprintf("\n");
+	}
+
+	if (((verbose > 0) || sanity) && ((glv_iRayNonConv != 0) || (glv_iRayFail != 0))) {
+		if (sanity) {
+			if (glv_iRayNonConv != 0)
+				mprintf( "    Ray regularization not converged in %d cases (%10.6f%c)\n",glv_iRayNonConv,(double)glv_iRayNonConv/m_fRayCount*100.0,'%');
+			if (glv_iRayFail != 0)
+				mprintf( "    Invalid intersection count in %d cases (%10.6f%c)\n",glv_iRayFail,(double)glv_iRayFail/m_fRayCount*100.0,'%');
+		} else {
+			mprintf( RED, "Warning: There were some issues with the Voronoi integration.\n");
+			if (glv_iRayNonConv != 0)
+				mprintf( "         Ray regularization not converged in %d cases (%10.6f%c)\n",glv_iRayNonConv,(double)glv_iRayNonConv/m_fRayCount*100.0,'%');
+			if (glv_iRayFail != 0)
+				mprintf( "         Invalid intersection count in %d cases (%10.6f%c)\n",glv_iRayFail,(double)glv_iRayFail/m_fRayCount*100.0,'%');
+			mprintf("You might want to run the sanity check for all trajectory frames.\n");
+			mprintf("To do so, select \"vori\" in the main function menu and activate the advanced mode.\n");
+		}
+	}
+
+	gridsum = 0;
+	for (z=0;z<m_p3DF->m_iRes[0]*m_p3DF->m_iRes[1]*m_p3DF->m_iRes[2];z++)
+		gridsum += m_p3DF->m_pBin[z];
+
+	if ((verbose > 0) && !sanity) {
+		mprintf( "        Electron count from input grid:          %14.8f\n",gridsum*integralFactor);
+		mprintf( "        Electron count from Voronoi integration: %14.8f",totecharge);
+		if (fabs(totecharge) > 1.0e-6)
+			mprintf( "  (%10.6f%c)",totecharge/(gridsum*integralFactor)*100.0,'%');
+		mprintf( "\n");
+		tf = (totecharge-gridsum*integralFactor);
+		if (fabs(tf) < 1.0e-8)
+			tf = 0;
+		mprintf( "        Deviation due to Voronoi integration:    %14.8f",tf);
+		if (fabs(totecharge) > 1.0e-6)
+			mprintf( "  (%10.6f%c)",fabs(totecharge-gridsum*integralFactor)/(gridsum*integralFactor)*100.0,'%');
+		mprintf( "\n");
 	}
 
 	if (sanity)
@@ -1530,6 +1640,7 @@ _done:;
 				m_fRayHisto[1] = 0;
 				m_fRayHisto[2] = 0;
 				
+				z = 0;
 				int z2a, z2b, z2c, z2d, z2e, z2f;
 				for (z2a = 0; z2a < m_p3DF->m_iRes[0]; z2a++) {
 					for (z2b = 0; z2b < m_p3DF->m_iRes[1]; z2b++) {
@@ -1540,13 +1651,21 @@ _done:;
 										if (m_hitCount[(z2d + z2e * m_iInterpolationFactor + z2f * m_iInterpolationFactor * m_iInterpolationFactor) * m_p3DF->m_iRes[0] * m_p3DF->m_iRes[1] * m_p3DF->m_iRes[2] + z2a + z2b * m_p3DF->m_iRes[0] + z2c * m_p3DF->m_iResXY] == 0) {
 											m_fRayHisto[0]++;
 											b = false;
-											mprintf("  Missed: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+											if (z < 100)
+												mprintf("  Missed: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+											else if (z == 100)
+												mprintf("  Omitting further output.\n\n");
+											z++;
 										} else if (m_hitCount[(z2d + z2e * m_iInterpolationFactor + z2f * m_iInterpolationFactor * m_iInterpolationFactor) * m_p3DF->m_iRes[0] * m_p3DF->m_iRes[1] * m_p3DF->m_iRes[2] + z2a + z2b * m_p3DF->m_iRes[0] + z2c * m_p3DF->m_iResXY] == 1) {
 											m_fRayHisto[1]++;
 										} else {
 											m_fRayHisto[2]++;
 											b = false;
-											mprintf("  Multiple: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+											if (z < 100)
+												mprintf("  Multiple: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+											else if (z == 100)
+												mprintf("  Omitting further output.\n\n");
+											z++;
 										}
 									}
 								}
@@ -1603,6 +1722,7 @@ _done:;
 			m_fRayHisto[1] = 0;
 			m_fRayHisto[2] = 0;
 			
+			z = 0;
 			int z2a, z2b, z2c, z2d, z2e, z2f;
 			for (z2a = 0; z2a < m_p3DF->m_iRes[0]; z2a++) {
 				for (z2b = 0; z2b < m_p3DF->m_iRes[1]; z2b++) {
@@ -1613,13 +1733,21 @@ _done:;
 									if (m_hitCount[(z2d + z2e * m_iInterpolationFactor + z2f * m_iInterpolationFactor * m_iInterpolationFactor) * m_p3DF->m_iRes[0] * m_p3DF->m_iRes[1] * m_p3DF->m_iRes[2] + z2a + z2b * m_p3DF->m_iRes[0] + z2c * m_p3DF->m_iResXY] == 0) {
 										m_fRayHisto[0]++;
 										b = false;
-										mprintf("  Missed: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+										if (z < 100)
+											mprintf("  Missed: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+										else if (z == 100)
+											mprintf("  Omitting further output.\n\n");
+										z++;
 									} else if (m_hitCount[(z2d + z2e * m_iInterpolationFactor + z2f * m_iInterpolationFactor * m_iInterpolationFactor) * m_p3DF->m_iRes[0] * m_p3DF->m_iRes[1] * m_p3DF->m_iRes[2] + z2a + z2b * m_p3DF->m_iRes[0] + z2c * m_p3DF->m_iResXY] == 1) {
 										m_fRayHisto[1]++;
 									} else {
 										m_fRayHisto[2]++;
 										b = false;
-										mprintf("  Multiple: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+										if (z < 100)
+											mprintf("  Multiple: ( %d.%d | %d.%d | %d.%d ).\n", z2a, z2d, z2b, z2e, z2c, z2f);
+										else if (z == 100)
+											mprintf("  Omitting further output.\n\n");
+										z++;
 									}
 								}
 							}
@@ -2210,9 +2338,12 @@ void CTetraPak::integrateCell(C3DF<VORI_FLOAT> *electronDensity, CxDoubleArray *
 						else if (ti == 2)
 							m_fRayHisto[2]++;
 						else m_fRayHisto[3]++;
-						
-						m_fRayCount++;
 					}
+
+					m_fRayCount++;
+
+					if ((ti != 0) && (ti != 2))
+						glv_iRayFail++;
 					
 					if (ti == 2) {
 						if (xv[0] > xv[1]) {
@@ -2575,7 +2706,7 @@ void CTetraPak::integrateCell(C3DF<VORI_FLOAT> *electronDensity, CxDoubleArray *
 
 inline bool CTetraFace::XRay_Hit(double py, double pz, double &px/*, bool verbose*/) {
 	double tf, a, b, ty, tz;
-	int z;
+	int z, i;
 	
 	#define lvec1x (m_vSpan1[0])
 	#define lvec1y (m_vSpan1[1])
@@ -2584,6 +2715,8 @@ inline bool CTetraFace::XRay_Hit(double py, double pz, double &px/*, bool verbos
 	#define lvec2y (m_vSpan2[1])
 	#define lvec2z (m_vSpan2[2])
 	
+	i = 0;
+
 	if (g_bBoxNonOrtho) {
 		
 		CxDVector3 veca = CxDVector3(g_mCubeCell(0,0) / 1000.0, g_mCubeCell(0,1) / 1000.0, g_mCubeCell(0,2) / 1000.0);
@@ -2593,7 +2726,9 @@ inline bool CTetraFace::XRay_Hit(double py, double pz, double &px/*, bool verbos
 		double coorda;
 		CxDVector3 intersection;
 		bool run;
+
 		do {
+			i++;
 			run = false;
 		
 			coorda = DotP(m_vNormal, m_vCenter - py * vecb - pz * vecc) / DotP(m_vNormal, veca);
@@ -2651,10 +2786,16 @@ inline bool CTetraFace::XRay_Hit(double py, double pz, double &px/*, bool verbos
 				if (area * m_vaEdges[z][2] < 0)
 					return false;
 			}
+			if (i > 20) {
+				glv_iRayNonConv++;
+				return false;
+			}
 		} while (run);
 		
 		px = coorda;
+
 		return true;
+
 	} else {
 		// Hack from 09.10.2014: Ray cannot hit walls which are almost parallel...
 		//		if (fabs(m_vNormal[0]) < 1.0E-14)
@@ -2667,6 +2808,7 @@ inline bool CTetraFace::XRay_Hit(double py, double pz, double &px/*, bool verbos
 		
 		bool run;
 		do {
+			i++;
 			run = false;
 			
 			a = (-tz*lvec2y + ty*lvec2z)/tf;
@@ -2699,6 +2841,10 @@ inline bool CTetraFace::XRay_Hit(double py, double pz, double &px/*, bool verbos
 				if (area * m_vaEdges[z][2] < 0)
 	// 			if ((m_vaEdges[z][0]*a + m_vaEdges[z][1]*b + m_vaEdges[z][2])*m_vaEdges[z][2] < 0)
 					return false;
+			}
+			if (i > 20) {
+				glv_iRayNonConv++;
+				return false;
 			}
 		} while (run);
 		

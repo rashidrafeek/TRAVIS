@@ -9,7 +9,7 @@
 
     Copyright (c) Martin Brehm and Martin Thomas,
                   Martin Luther University Halle-Wittenberg, Germany,
-                  2016 - 2021.
+                  2016 - 2022.
 
     Please cite:  M. Brehm, M. Thomas: "An Efficient Lossless Compression Algorithm
                   for Trajectories of Atom Positions and Volumetric Data",
@@ -3246,7 +3246,7 @@ void BQB_PrintBMode() {
 	gc_pBQBInterface->printf("    Free software, licensed under GNU LGPL v3\n");
 	gc_pBQBInterface->printf("\n");
 	gc_pBQBInterface->printf("    Copyright (c) Martin Brehm and Martin Thomas,\n");
-	gc_pBQBInterface->printf("                  Martin Luther University Halle-Wittenberg (Germany), 2016 - 2021.\n");
+	gc_pBQBInterface->printf("                  Martin Luther University Halle-Wittenberg (Germany), 2016 - 2022.\n");
 	gc_pBQBInterface->printf("\n");
 
 

@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -92,10 +92,14 @@ void CSankeyDiagramEngine::BuildSankeyDiagram( const char *s ) {
 	mprintf("\n");
 	mprintf(WHITE,"    #############################################\n");
 	mprintf(WHITE,"    ####        Sankey Diagram Engine        ####\n");
-	mprintf(WHITE,"    ####    (c) Martin Brehm, 2020 - 2021    ####\n");
+	mprintf(WHITE,"    ####    (c) Martin Brehm, 2020 - 2022    ####\n");
 	mprintf(WHITE,"    ####      https://brehm-research.de      ####\n");
 	mprintf(WHITE,"    #############################################\n");
 	mprintf("\n");
+
+	mprintf("\n");
+	mprintf("    This module reads data files that have previously been created by an aggregation topology analysis (\"aggrtopo.dat\").\n");
+	mprintf("    To run such an analysis, enter \"agtopo\" in the main function menu of TRAVIS.\n\n");
 
 	if (AskYesNo("    Create a linear (left-to-right) Sankey diagram (y) or a circular Sankey diagram (n)? [yes] ",true)) {
 

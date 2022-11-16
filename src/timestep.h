@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -101,6 +101,9 @@ public:
 	bool ReadGRO(FILE *a, bool needinfo);
 	bool SkipGRO(FILE *a);
 
+	bool ReadVASP(FILE *a, bool needinfo);
+	bool SkipVASP(FILE *a);
+
 	bool ReadDCDHeader(FILE *a);
 	bool ReadDCD(FILE *a, bool needinfo);
 	bool SkipDCDHeader(FILE *a);
@@ -157,6 +160,7 @@ public:
 	void WriteTimestep(FILE *a);
 	void WriteTimestepNb(FILE *a, CNbSet *nbs, int singlemol = -1);
 	void ExportSingleMolecule_PDB(CSingleMolecule *sm, const char *s);
+	void ExportXYZConfiguration( FILE *a, const char *comment, bool originalcoords, std::vector<int> *smlist );
 //	void WriteTimestepNb(int refmol, FILE *a);
 //	void GatherNbDiagram(int refmol, CNbSearch *nb);
 	void AddAtoms();

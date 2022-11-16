@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -44,6 +44,7 @@
 #include "lmwrapper.h"
 #include "conversion.h"
 #include "bqb_config.h"
+#include "cluster.h"
 #include "xdvector3.h"
 #include "xdmatrix3.h"
 #include "xquaternion.h"
@@ -148,6 +149,10 @@ int main(int argc, const char *argv[])
 	CAutoCorrelation *ac;
 	CCrossCorrelation *ccr;
 	CDACFSub *dacfsub;
+	CxDVector3 vecsnap1, vecsnap2, vecsnap3;
+	CxDMatrix3 matsnap;
+	CxString bufcom;
+	std::vector<int> tiasnap;
 	unsigned int *pSwapMatrix;
 	CxDMatrix3 tdmat, tdmat2;
 	CxDVector3 dvec0, dvec1, dvec2, dvec3, dvec4;
@@ -159,19 +164,6 @@ int main(int argc, const char *argv[])
 		unsigned long tul;
 	#endif
 
-//	TestVoro2D();
-//	return 0;
-
-/*	CDF t2df;
-
-	//t2df.ReadCSV("E:\\Dump\\TestRDF\\rdf_C6H11N2_#2_C2H3O2_[#2r_#2o].csv");
-	//t2df.ReadCSV("E:\\Dump\\TestRDF\\rdf_C6H11N2_#2_C2H3O2_[C6r_C2o].csv");
-	//t2df.ReadCSV("E:\\Dump\\TestRDF\\rdf_C6H11N2_#2_C2H3O2_[H1r_Oo].csv");
-	//t2df.ReadCSV("E:\\Dump\\TestRDF\\rdf_C6H11N2_#2_C6H11N2_[#2r_#2o].csv");
-	t2df.ReadCSV("E:\\Dump\\AT\\aggrtopo_rdf_C30H52O26_O___C30H52O26_H36-52.csv");
-	t2df.FindFirstMinMax(true);
-
-	return 0;*/
 
 
 
@@ -799,6 +791,9 @@ int main(int argc, const char *argv[])
 	}
 
 
+	if (g_bReRa)
+		goto _ende2;
+
 	if (g_bROA) { // This *replaces* the main loop
 		g_pROAEngine->MainLoop();
 		goto _ende2;
@@ -1079,6 +1074,16 @@ _multiintervalstart:
 		mprintf("Initializing observation %d...\n",z+1);
 		o = (CObservation*)g_oaObserv[z];
 
+		if (o->m_bPercTimeDev) {
+			buf.sprintf("fraction_timedev_%d_%s.csv",z+1,((CMolecule*)g_oaMolecules[g_iFixMol])->m_sName);
+			mprintf("  Opening Fraction Temporal Development file \"%s\" ...\n",(const char*)buf);
+			o->m_pPercTimeDevFile = OpenFileWrite((const char*)buf,true);
+			mfprintf(
+				o->m_pPercTimeDevFile,
+				"# Step;  Count;  Percentage\n"
+			);
+		}
+
 		if (g_bAggregation)
 		{
 			mprintf("  Creating aggregation functions (%d value sets)...\n",o->m_pDACF->m_oaSubDACFs.GetSize());
@@ -1227,6 +1232,7 @@ _multiintervalstart:
 			}
 
 			if (o->m_pPlProj->m_bVector) {
+				o->m_pPlProj->m_p2DF->m_bContourLines = false;
 				o->m_pPlProj->m_faVectorData.resize(o->m_pPlProj->m_iVecRes[0]*o->m_pPlProj->m_iVecRes[1]*2);
 				o->m_pPlProj->m_faVectorCount.resize(o->m_pPlProj->m_iVecRes[0]*o->m_pPlProj->m_iVecRes[1]);
 				for (z2=0;z2<o->m_pPlProj->m_iVecRes[0]*o->m_pPlProj->m_iVecRes[1]*2;z2++)
@@ -2679,6 +2685,17 @@ _decomptype2:
 			if (o->m_pCDF->m_sName == NULL) NewException((double)(strlen(buf)+1)*sizeof(char),__FILE__,__LINE__,__PRETTY_FUNCTION__);
 			
 			strcpy(o->m_pCDF->m_sName,buf);
+
+			if (o->m_pCDF->m_bWriteSnapshots) {
+
+				if (!o->m_pCDF->m_bWriteSnapshotsNoWrite) {
+					o->m_pCDF->m_sWriteSnapshotsFileName.sprintf( "cdf_%d%s_snapshots.xyz", z+1, o->m_pCDF->m_sShortName );
+					mprintf("    Opening output file \"%s\" for writing snapshots...\n",(const char*)o->m_pCDF->m_sWriteSnapshotsFileName);
+					o->m_pCDF->m_pWriteSnapshotsFile = OpenFileWrite( (const char*)o->m_pCDF->m_sWriteSnapshotsFileName, true );
+				} else
+					mprintf("    Not creating snapshot file, only counting configurations...\n");
+			}
+
 			if (o->m_pCDF->m_bDumpDat)
 			{
 //				sprintf(buf,"cdfdump_%dd%s%s.csv",g_iCDFChannels,o->m_pCDF->m_sShortName,multibuf);
@@ -2871,6 +2888,12 @@ _decomptype2:
 				}
 			}
 		}
+	}
+
+	if (g_bClusterAnalysis)
+	{
+		mprintf("  Creating Cluster Analysis...\n");
+		g_pClusterAnalysis->Create();
 	}
 
 
@@ -4057,7 +4080,7 @@ _readagain:
 		}
 		
 		if (g_bTegri) {
-			g_pTetraPak->ProcessStep(GetTimeStep(0), false);
+			g_pTetraPak->ProcessStep(GetTimeStep(0), 0);
 		}
 		
 		if (g_bDipole) {
@@ -4145,20 +4168,22 @@ _readagain:
 								ti = ((CxIntArray*)((CSingleMolecule*)g_oaSingleMolecules[((CMolecule*)g_oaMolecules[o->m_iShowMol])->m_laSingleMolIndex[z4]])->m_oaAtomOffset[o->m_pMSD->m_pAtomGroup->m_baAtomType[z2]])->GetAt(((CxIntArray*)o->m_pMSD->m_pAtomGroup->m_oaAtoms[z2])->GetAt(z3));
 								ptfa = (CxDoubleArray*)o->m_pMSD->m_oaCache[ti2];
 
+									vec2 = g_pT2Timestep->m_vaCoords[ti];
+
 								if (g_bPeriodic && (ptfa->GetSize() > 0))
 								{
 									ti3 = ptfa->GetSize()-3;
 									vec1[0] = ptfa->GetAt(ti3++);
 									vec1[1] = ptfa->GetAt(ti3++);
 									vec1[2] = ptfa->GetAt(ti3);
-									tf = (g_pT2Timestep->m_vaCoords[ti]-vec1).GetLength();
-									if (tf > g_fMinPeriodic/2.0)
-										eprintf("\nDiscontinuity in step %lu: %s[%d] %s%d moved %.2f pm. Can't compute MSD from wrapped trajectory - unwrap first.",g_iSteps,((CMolecule*)g_oaMolecules[g_waAtomMolIndex[ti]])->m_sName,g_laAtomSMLocalIndex[ti]+1,(const char*)((CAtom*)g_oaAtoms[g_waAtomRealElement[ti]])->m_sName,g_waAtomMolNumber[ti]+1,tf);
+									tf = (vec2-vec1).GetLength();
+										if (tf > g_fMinPeriodic/2.0)
+											eprintf("\nDiscontinuity in step %lu: %s[%d] %s%d moved %.2f pm. Can't compute MSD from wrapped trajectory - please use unwrapped trajectory.",g_iSteps,((CMolecule*)g_oaMolecules[g_waAtomMolIndex[ti]])->m_sName,g_laAtomSMLocalIndex[ti]+1,(const char*)((CAtom*)g_oaAtoms[g_waAtomRealElement[ti]])->m_sName,g_waAtomMolNumber[ti]+1,tf);
 								}
 
-								ptfa->Add(g_pT2Timestep->m_vaCoords[ti][0]);
-								ptfa->Add(g_pT2Timestep->m_vaCoords[ti][1]);
-								ptfa->Add(g_pT2Timestep->m_vaCoords[ti][2]);
+								ptfa->Add( vec2[0] );
+								ptfa->Add( vec2[1] );
+								ptfa->Add( vec2[2] );
 
 								ti2++;
 							}
@@ -4916,7 +4941,13 @@ _readagain:
 		if (g_bGeoDens)
 			g_pGeoDensEngine->ProcessStep(GetTimeStep(0));
 
-//
+		if (g_bClusterAnalysis)
+		{
+			g_pTempTimestep->CopyFrom(GetTimeStep(0));
+			g_pClusterAnalysis->Process(g_pTempTimestep);
+		}
+
+
 		if (g_bVoro)
 		{
 			g_pTempTimestep->CopyFrom(GetTimeStep(0));
@@ -4997,6 +5028,21 @@ _readagain:
 					o->m_iCondDevelopmentAvg = 0;
 				}
 			}
+
+			if (o->m_bPercTimeDev) {
+				o->m_iPercTimeDevTempCounter = 0;
+				o->m_iPercTimeDevTempTotal = 0;
+			}
+		}
+
+
+		if (g_bCDF) {
+			for (z6=0;z6<g_oaObserv.GetSize();z6++) {
+				o = (CObservation*)g_oaObserv[z6];
+				if (o->m_pCDF != NULL)
+					if (o->m_pCDF->m_bWriteSnapshots)
+						o->m_pCDF->m_bWriteSnapshotDone = false;
+			}
 		}
 
 
@@ -5026,6 +5072,15 @@ _readagain:
 			}
 
 			g_pTempTimestep->CopyFrom(GetTimeStep(0));
+
+			if (g_bCDF) {
+				for (z6=0;z6<g_oaObserv.GetSize();z6++) {
+					o = (CObservation*)g_oaObserv[z6];
+					if (o->m_pCDF != NULL)
+						if (o->m_pCDF->m_bWriteSnapshots)
+							o->m_pCDF->m_bWriteSnapshotsTempRM = false;
+				}
+			}
 
 			// Zentrieren/Falten der ganzen Box nur noch noetig bei den folgenden Analysen
 			if (g_bPlProj || g_bSDF || g_bRevSDF || g_bCutCluster || g_bSaveRefEnv || g_bSaveJustTraj ||
@@ -5214,6 +5269,9 @@ _readagain:
 				for (z6=0;z6<g_oaObserv.GetSize();z6++)
 				{
 					o = (CObservation*)g_oaObserv[z6];
+
+					if (o->m_bNormalizeCondition)
+						o->m_iNormalizeConditionLocalCount = 0;
 
 				//	mprintf("\nStep %d, z2=%d, Obs=%d, Reg=%d, ObsReg=%d.",g_iSteps,z2,z6,g_iaSMRegion[((CMolecule*)g_oaMolecules[g_iFixMol])->m_laSingleMolIndex[z2]],o->m_iaRMRegions[0]);
 
@@ -5488,6 +5546,12 @@ _readagain:
 										}
 										if (o->m_bTimeDiff)
 											((CxDoubleArray*)o->m_pADF[zr]->m_pADF->m_oaTimeDiffBuf[z2*o->m_pADF[zr]->m_iCombinations+z4/6])->Add((double)tf);
+
+										if (o->m_bPercTimeDev) {
+											o->m_iPercTimeDevTempTotal++;
+											if ((tf >= o->m_fPercTimeDevMin) && (tf <= o->m_fPercTimeDevMax))
+												o->m_iPercTimeDevTempCounter++;
+										}
 									}
 								} // END FOR z4
 							} // END FOR zr
@@ -5600,6 +5664,16 @@ _readagain:
 											if (o->m_bCombinedPlot)
 												o->m_pDDF[zr]->m_pDDF->m_pCombinedPlot->AddXYTupel(ti2*o->m_pDDF[zr]->m_iCombinations+z4/9,g_iSteps*g_fTimestepLength/1000.0,tf);
 										}
+
+										if (o->m_bPercTimeDev) {
+											o->m_iPercTimeDevTempTotal++;
+									//		mprintf("@ %f",tf);
+											if ((tf >= o->m_fPercTimeDevMin) && (tf <= o->m_fPercTimeDevMax)) {
+												o->m_iPercTimeDevTempCounter++;
+									//			mprintf(" Ok");
+											}
+									//		mprintf("\n");
+										}
 									}
 								}
 							}
@@ -5675,6 +5749,12 @@ _readagain:
 										}
 										if (o->m_bTimeDiff)
 											((CxDoubleArray*)o->m_pRDF[zr]->m_pRDF->m_oaTimeDiffBuf[z2*o->m_pRDF[zr]->m_iCombinations+z4/2])->Add((double)tf);
+
+										if (o->m_bPercTimeDev) {
+											o->m_iPercTimeDevTempTotal++;
+											if ((tf >= o->m_fPercTimeDevMin) && (tf <= o->m_fPercTimeDevMax))
+												o->m_iPercTimeDevTempCounter++;
+										}
 									}
 								} 
 							}
@@ -6090,6 +6170,9 @@ _secondmolstart:
 								}*/
 							}
 
+							if (o->m_bNormalizeCondition)
+								o->m_iNormalizeConditionLocalCount++;
+
 							if (g_bVHDF)
 							{
 								o->m_pVHDF->BuildAtomList(smfix,sm,&templa);
@@ -6229,6 +6312,12 @@ _secondmolstart:
 											}
 											if (o->m_bTimeDiff)
 												((CxDoubleArray*)o->m_pADF[zr]->m_pADF->m_oaTimeDiffBuf[(z2*o->m_iShowMolCount+z3)*o->m_pADF[zr]->m_iCombinations+z4/6])->Add((double)tf);
+
+											if (o->m_bPercTimeDev) {
+												o->m_iPercTimeDevTempTotal++;
+												if ((tf >= o->m_fPercTimeDevMin) && (tf <= o->m_fPercTimeDevMax))
+													o->m_iPercTimeDevTempCounter++;
+											}
 										}
 									}
 								}
@@ -6358,6 +6447,12 @@ _secondmolstart:
 														else mfprintf(o->m_pDDF[zr]->m_fAngle[0],"; %8.3f",tf2);
 												if (o->m_bCombinedPlot)
 													o->m_pDDF[zr]->m_pDDF->m_pCombinedPlot->AddXYTupel((ti2*o->m_waSaveShowList.GetSize()+ti)*o->m_pDDF[zr]->m_iCombinations+z4/9,g_iSteps*g_fTimestepLength/1000.0,tf);
+											}
+
+											if (o->m_bPercTimeDev) {
+												o->m_iPercTimeDevTempTotal++;
+												if ((tf >= o->m_fPercTimeDevMin) && (tf <= o->m_fPercTimeDevMax))
+													o->m_iPercTimeDevTempCounter++;
 											}
 										}
 									}
@@ -6675,6 +6770,12 @@ _secondmolstart:
 											}
 											if (o->m_bTimeDiff)
 												((CxDoubleArray*)o->m_pRDF[zr]->m_pRDF->m_oaTimeDiffBuf[(z2*o->m_iShowMolCount+z3)*o->m_pRDF[zr]->m_iCombinations+z4/2])->Add((double)tf);
+
+											if (o->m_bPercTimeDev) {
+												o->m_iPercTimeDevTempTotal++;
+												if ((tf >= o->m_fPercTimeDevMin) && (tf <= o->m_fPercTimeDevMax))
+													o->m_iPercTimeDevTempCounter++;
+											}
 										}
 									} 
 								}
@@ -6952,14 +7053,41 @@ _secondmolstart:
 						}
 					} // END IF REVSDF
 
-					if (g_bCDF && (!g_bDeriv || (g_iSteps > 2)))
-					{
-						if (o->m_bSecondShowMol)
-						{
-							for (zr=0;zr<g_iCDFChannels;zr++)
-							{
-								switch(g_iObsChannel[zr])
-								{
+					if (g_bCDF && (!g_bDeriv || (g_iSteps > 2))) {
+
+						if (o->m_pCDF->m_bWriteSnapshots) {
+
+							if (o->m_pCDF->m_bWriteSnapshotsOnlyRMOM && !o->m_pCDF->m_bWriteSnapshotsNoWrite) {
+
+								if (g_pTempTimestepSnap == NULL)
+									g_pTempTimestepSnap = new CTimeStep();
+								g_pTempTimestepSnap->CopyFrom( g_pTempTimestep );
+
+								if (o->m_pCDF->m_bWriteSnapshotsCenterRM) {
+
+									vecsnap1 = g_pTempTimestepSnap->m_vaCoords[((CxIntArray*)smfix->m_oaAtomOffset[ o->m_pCDF->m_iWriteSnapshotFixType[0] ])->GetAt( o->m_pCDF->m_iWriteSnapshotFixAtom[0] )];
+									g_pTempTimestepSnap->CenterPos(vecsnap1);
+
+									g_pTempTimestepSnap->FoldMolecules();
+
+									if (o->m_pCDF->m_bWriteSnapshotsFixRM) {
+
+										vecsnap2 = g_pTempTimestepSnap->m_vaCoords[((CxIntArray*)smfix->m_oaAtomOffset[ o->m_pCDF->m_iWriteSnapshotFixType[1] ])->GetAt( o->m_pCDF->m_iWriteSnapshotFixAtom[1] )];
+										vecsnap3 = g_pTempTimestepSnap->m_vaCoords[((CxIntArray*)smfix->m_oaAtomOffset[ o->m_pCDF->m_iWriteSnapshotFixType[2] ])->GetAt( o->m_pCDF->m_iWriteSnapshotFixAtom[2] )];
+
+										matsnap.MatUltra( vecsnap2, vecsnap3 );
+
+										g_pTempTimestepSnap->Transform( matsnap );
+									}
+								}
+							}
+						}
+
+						if (o->m_bSecondShowMol) {
+
+							for (zr=0;zr<g_iCDFChannels;zr++) {
+
+								switch(g_iObsChannel[zr]) {
 									case 0: 
 										apfa[zr] = o->m_pRDF[zr]->m_faData; 
 										apba[zr] = o->m_pRDF[zr]->m_baDataEnabled; 
@@ -6991,33 +7119,99 @@ _secondmolstart:
 								}
 							}
 
-							if (g_iCDFChannels == 2)
-							{
-								for (z4=0;z4<o->m_iShowMolCount;z4++)
-								{
-									for (z5=0;z5<apfa[0][z4].GetSize();z5++)
-									{
-										for (z8=0;z8<o->m_iShowMol2Count;z8++)
-										{
+							if (g_iCDFChannels == 2) {
+
+								for (z4=0;z4<o->m_iShowMolCount;z4++) {
+
+									for (z5=0;z5<apfa[0][z4].GetSize();z5++) {
+
+										for (z8=0;z8<o->m_iShowMol2Count;z8++) {
+
 											if (o->m_bExclude1eq2 && (z4 == z8))
 												continue;
 
-											for (z7=0;z7<apfa[1][z8].GetSize();z7++)
-											{
+											for (z7=0;z7<apfa[1][z8].GetSize();z7++) {
+
 												if (o->m_bBinOnlyPassedAtoms)
-												{
 													if ((apba[0][z4][z5] == 0) || (apba[1][z8][z7] == 0))
 														goto _nocdfbin2;
-												}
+
 												if (o->m_bBinOnlyNotPassedAtoms)
-												{
 													if ((apba[0][z4][z5] != 0) && (apba[1][z8][z7] != 0))
 														goto _nocdfbin2;
+
+												o->m_pCDF->m_p2DF->AddToBin( apfa[0][z4][z5], apfa[1][z8][z7] );
+
+												if (o->m_pCDF->m_bWriteSnapshots) {
+
+													if ((apfa[0][z4][z5] >= o->m_pCDF->m_faWriteSnapshotsRange[0]) &&
+														(apfa[0][z4][z5] <= o->m_pCDF->m_faWriteSnapshotsRange[1]) &&
+														(apfa[1][z8][z7] >= o->m_pCDF->m_faWriteSnapshotsRange[2]) &&
+														(apfa[1][z8][z7] <= o->m_pCDF->m_faWriteSnapshotsRange[3])) {
+
+														if (!o->m_pCDF->m_bWriteSnapshotsTempRM) {
+															o->m_pCDF->m_bWriteSnapshotsTempRM = true;
+															o->m_pCDF->m_iWriteSnapshotsTotalPerRM++;
+														}
+
+														o->m_pCDF->m_iWriteSnapshotsTotalCounter++;
+
+														if (o->m_pCDF->m_bWriteSnapshotsNoWrite)
+															goto _nocdfwritesnapshot;
+
+														if (o->m_pCDF->m_iWriteSnapshotStride > 1) {
+															o->m_pCDF->m_iWriteSnapshotCounter++;
+															if (o->m_pCDF->m_iWriteSnapshotCounter % o->m_pCDF->m_iWriteSnapshotStride != 0)
+																goto _nocdfwritesnapshot;
+														}
+
+														bufcom.sprintf(
+															"Step %lu, RM=%d, OM1=%d, OM2=%d, Val1=%f, Val2=%f",
+															g_iSteps,
+															smfix->m_iMolSMIndex+1,
+															z4+1,
+															z8+1,
+															apfa[0][z4][z5],
+															apfa[1][z8][z7]
+														);
+
+														if (o->m_pCDF->m_bWriteSnapshotsOnlyRMOM) {
+
+															tiasnap.clear();
+															tiasnap.push_back( smfix->m_iIndex );
+															tiasnap.push_back( ((CMolecule*)g_oaMolecules[o->m_iShowMol])->m_laSingleMolIndex[z4] );
+															tiasnap.push_back( ((CMolecule*)g_oaMolecules[o->m_iShowMol2])->m_laSingleMolIndex[z8] );
+
+															g_pTempTimestepSnap->ExportXYZConfiguration(
+																o->m_pCDF->m_pWriteSnapshotsFile,
+																(const char*)bufcom,
+																o->m_pCDF->m_bWriteSnapshotsOriginalCoords,
+																&tiasnap
+															);
+
+															o->m_pCDF->m_iWriteSnapshotsTotalWritten++;
+
+														} else {
+
+															if (!o->m_pCDF->m_bWriteSnapshotDone) {
+
+																// Only write a snapshot once per trajectory frame, as all molecules are included
+																o->m_pCDF->m_bWriteSnapshotDone = true;
+
+																g_pTempTimestep->ExportXYZConfiguration(
+																	o->m_pCDF->m_pWriteSnapshotsFile,
+																	(const char*)bufcom,
+																	o->m_pCDF->m_bWriteSnapshotsOriginalCoords,
+																	NULL
+																);
+
+																o->m_pCDF->m_iWriteSnapshotsTotalWritten++;
+															}
+														}
+													}
 												}
-
-												o->m_pCDF->m_p2DF->AddToBin(apfa[0][z4][z5],apfa[1][z8][z7]);
+_nocdfwritesnapshot:
 _nocdfbin2:
-
 												if (o->m_pCDF->m_bDumpDat)
 													mfprintf(o->m_pCDF->m_fDump,"%d;  %d;  %d;  %d;  %10.3f;  %10.3f\n",(int)g_iSteps,z2+1,z4+1,z5+1,apfa[0][z4][z5],apfa[1][z8][z7]);
 											}
@@ -7115,10 +7309,80 @@ _ddfsymmdone:
 												if ((apba[0][z4][z5] != 0) && (apba[1][z4][z7] != 0))
 													goto _nocdfbin;
 											}
+
 											o->m_pCDF->m_p2DF->AddToBin(apfa[0][z4][z5],apfa[1][z4][z7]);
-_nocdfbin:;
+
+											if (o->m_pCDF->m_bWriteSnapshots) {
+
+												if ((apfa[0][z4][z5] >= o->m_pCDF->m_faWriteSnapshotsRange[0]) &&
+													(apfa[0][z4][z5] <= o->m_pCDF->m_faWriteSnapshotsRange[1]) &&
+													(apfa[1][z4][z7] >= o->m_pCDF->m_faWriteSnapshotsRange[2]) &&
+													(apfa[1][z4][z7] <= o->m_pCDF->m_faWriteSnapshotsRange[3])) {
+
+													if (!o->m_pCDF->m_bWriteSnapshotsTempRM) {
+														o->m_pCDF->m_bWriteSnapshotsTempRM = true;
+														o->m_pCDF->m_iWriteSnapshotsTotalPerRM++;
+													}
+
+													o->m_pCDF->m_iWriteSnapshotsTotalCounter++;
+
+													if (o->m_pCDF->m_bWriteSnapshotsNoWrite)
+														goto _nocdfwritesnapshot2;
+
+													if (o->m_pCDF->m_iWriteSnapshotStride > 1) {
+														o->m_pCDF->m_iWriteSnapshotCounter++;
+														if (o->m_pCDF->m_iWriteSnapshotCounter % o->m_pCDF->m_iWriteSnapshotStride != 0)
+															goto _nocdfwritesnapshot2;
+													}
+
+													bufcom.sprintf(
+														"Step %lu, RM=%d, OM=%d, Val1=%f, Val2=%f",
+														g_iSteps,
+														smfix->m_iMolSMIndex+1,
+														z4+1,
+														apfa[0][z4][z5],
+														apfa[1][z4][z7]
+													);
+
+													if (o->m_pCDF->m_bWriteSnapshotsOnlyRMOM) {
+
+														tiasnap.clear();
+														tiasnap.push_back( smfix->m_iIndex );
+														tiasnap.push_back( ((CMolecule*)g_oaMolecules[o->m_iShowMol])->m_laSingleMolIndex[z4] );
+
+														g_pTempTimestepSnap->ExportXYZConfiguration(
+															o->m_pCDF->m_pWriteSnapshotsFile,
+															(const char*)bufcom,
+															o->m_pCDF->m_bWriteSnapshotsOriginalCoords,
+															&tiasnap
+														);
+
+														o->m_pCDF->m_iWriteSnapshotsTotalWritten++;
+
+													} else {
+
+														if (!o->m_pCDF->m_bWriteSnapshotDone) {
+
+															// Only write a snapshot once per trajectory frame, as all molecules are included
+															o->m_pCDF->m_bWriteSnapshotDone = true;
+
+															g_pTempTimestep->ExportXYZConfiguration(
+																o->m_pCDF->m_pWriteSnapshotsFile,
+																(const char*)bufcom,
+																o->m_pCDF->m_bWriteSnapshotsOriginalCoords,
+																NULL
+															);
+
+															o->m_pCDF->m_iWriteSnapshotsTotalWritten++;
+														}
+													}
+												}
+											}
+_nocdfwritesnapshot2:
+_nocdfbin:
 											if (o->m_pCDF->m_bDumpDat)
 												mfprintf(o->m_pCDF->m_fDump,"%d;  %d;  %d;  ;  %10.3f;  %10.3f\n",(int)g_iSteps,z2+1,z4+1,apfa[0][z4][z5],apfa[1][z4][z7]);
+
 											if (o->m_bTimeDev)
 											{
 												ti = o->m_waSaveShowList.GetPosition((unsigned short)z4);
@@ -7167,12 +7431,85 @@ _nocdfbin:;
 													if ((apba[0][z4][z5] != 0) && (apba[1][z4][z8] != 0) && (apba[2][z4][z7] != 0))
 														goto _3nocdfbin;
 												}
+
 												o->m_pCDF->m_p3DF->AddToBin(apfa[0][z4][z5],apfa[1][z4][z8],apfa[2][z4][z7]);
 
 												o->m_pCDF->m_p3DF->m_p2DF[0]->AddToBin(apfa[0][z4][z5],apfa[1][z4][z8]);
 												o->m_pCDF->m_p3DF->m_p2DF[1]->AddToBin(apfa[0][z4][z5],apfa[2][z4][z7]);
 												o->m_pCDF->m_p3DF->m_p2DF[2]->AddToBin(apfa[1][z4][z8],apfa[2][z4][z7]);
-_3nocdfbin:;
+
+												if (o->m_pCDF->m_bWriteSnapshots) {
+
+													if ((apfa[0][z4][z5] >= o->m_pCDF->m_faWriteSnapshotsRange[0]) &&
+														(apfa[0][z4][z5] <= o->m_pCDF->m_faWriteSnapshotsRange[1]) &&
+														(apfa[1][z4][z8] >= o->m_pCDF->m_faWriteSnapshotsRange[2]) &&
+														(apfa[1][z4][z8] <= o->m_pCDF->m_faWriteSnapshotsRange[3]) &&
+														(apfa[2][z4][z7] >= o->m_pCDF->m_faWriteSnapshotsRange[4]) &&
+														(apfa[2][z4][z7] <= o->m_pCDF->m_faWriteSnapshotsRange[5])) {
+
+														if (!o->m_pCDF->m_bWriteSnapshotsTempRM) {
+															o->m_pCDF->m_bWriteSnapshotsTempRM = true;
+															o->m_pCDF->m_iWriteSnapshotsTotalPerRM++;
+														}
+
+														o->m_pCDF->m_iWriteSnapshotsTotalCounter++;
+
+														if (o->m_pCDF->m_bWriteSnapshotsNoWrite)
+															goto _nocdfwritesnapshot3;
+
+														if (o->m_pCDF->m_iWriteSnapshotStride > 1) {
+															o->m_pCDF->m_iWriteSnapshotCounter++;
+															if (o->m_pCDF->m_iWriteSnapshotCounter % o->m_pCDF->m_iWriteSnapshotStride != 0)
+																goto _nocdfwritesnapshot3;
+														}
+
+														bufcom.sprintf(
+															"Step %lu, RM=%d, OM=%d, Val1=%f, Val2=%f, Val3=%f",
+															g_iSteps,
+															smfix->m_iMolSMIndex+1,
+															z4+1,
+															apfa[0][z4][z5],
+															apfa[1][z4][z8],
+															apfa[2][z4][z7]
+														);
+
+														if (o->m_pCDF->m_bWriteSnapshotsOnlyRMOM) {
+
+															tiasnap.clear();
+															tiasnap.push_back( smfix->m_iIndex );
+															tiasnap.push_back( ((CMolecule*)g_oaMolecules[o->m_iShowMol])->m_laSingleMolIndex[z4] );
+
+															g_pTempTimestepSnap->ExportXYZConfiguration(
+																o->m_pCDF->m_pWriteSnapshotsFile,
+																(const char*)bufcom,
+																o->m_pCDF->m_bWriteSnapshotsOriginalCoords,
+																&tiasnap
+															);
+
+															o->m_pCDF->m_iWriteSnapshotsTotalWritten++;
+
+														} else {
+
+															if (!o->m_pCDF->m_bWriteSnapshotDone) {
+
+																// Only write a snapshot once per trajectory frame, as all molecules are included
+																o->m_pCDF->m_bWriteSnapshotDone = true;
+
+																g_pTempTimestep->ExportXYZConfiguration(
+																	o->m_pCDF->m_pWriteSnapshotsFile,
+																	(const char*)bufcom,
+																	o->m_pCDF->m_bWriteSnapshotsOriginalCoords,
+																	NULL
+																);
+
+																o->m_pCDF->m_iWriteSnapshotsTotalWritten++;
+															}
+														}
+													}
+												}
+_nocdfwritesnapshot3:
+
+_3nocdfbin:
 												if (o->m_pCDF->m_bDumpDat)
 													mfprintf(o->m_pCDF->m_fDump,"%d;  %d;  %d;  ;  %10.3f;  %10.3f;  %10.3f\n",(int)g_iSteps,z2+1,z4+1,apfa[0][z4][z5],apfa[1][z4][z8],apfa[2][z4][z7]);
 											}
@@ -7468,7 +7805,12 @@ _3nocdfbin:;
 						o->m_iCondDevelopmentAvg += o->m_pConditions->m_iTempPassed;
 					}
 
+					if (o->m_bNormalizeCondition)
+						if (o->m_iNormalizeConditionLocalCount != 0)
+							o->m_iNormalizeConditionCount++;
+
 				} // Ende FOR g_oaObserv.GetSize
+
 			} // Ende IF [blabla]	
 	
 			if (g_bMiddleAvg) // Referenzmolekuel mitteln
@@ -7550,6 +7892,20 @@ _3nocdfbin:;
 				for (z2=0;z2<((CMolecule*)g_oaMolecules[o->m_iShowMol])->m_laSingleMolIndex.GetSize();z2++)
 					if (o->m_pConditionsOM2->m_iPassCounter[z2] != 0)
 						o->m_pConditionsOM2->m_iOMPassCounter[z2]++;
+
+			if (o->m_bPercTimeDev) {
+				if (o->m_iPercTimeDevTempTotal != 0)
+					tf = (double)o->m_iPercTimeDevTempCounter/o->m_iPercTimeDevTempTotal*100.0;
+				else
+					tf = 0;
+				mfprintf(
+					o->m_pPercTimeDevFile,
+					"%lu;  %d;  %.10f\n",
+					g_iSteps,
+					o->m_iPercTimeDevTempCounter,
+					tf
+				);
+			}
 
 		}
 
@@ -7645,6 +8001,13 @@ _endmainloop:
 
 	if (g_bGeoDens)
 		g_pGeoDensEngine->Finish();
+
+	if (g_bClusterAnalysis)
+	{
+		mprintf(WHITE,"*** Cluster Analysis\n\n");
+		g_pClusterAnalysis->BuildClusterDistribution();
+		g_pClusterAnalysis->WriteOutput(multibuf);
+	}
 
 
 	if (g_bBondACF)
@@ -8416,6 +8779,13 @@ _endmainloop:
 			buf.sprintf("cond_%d_%s_%s.csv",z+1,((CMolecule*)g_oaMolecules[g_iFixMol])->m_sName,((CMolecule*)g_oaMolecules[o->m_iShowMol])->m_sName);
 			mprintf("\n    Closing Condition Temporal Development File \"%s\"...\n",(const char*)buf);
 			fclose(o->m_pCondDevelopment);
+		}
+
+		if (o->m_bPercTimeDev) {
+			buf.sprintf("fraction_timedev_%d_%s.csv",z+1,((CMolecule*)g_oaMolecules[g_iFixMol])->m_sName);
+			mprintf("\n    Closing Fraction Temporal Development File \"%s\"...\n",(const char*)buf);
+			fclose(o->m_pPercTimeDevFile);
+			o->m_pPercTimeDevFile = NULL;
 		}
 
 		if (g_bAggregation)
@@ -9992,6 +10362,17 @@ _sdf_nm:
 				mprintf("    Please reduce the bin counts (e.g. by analyzing only every 10th step).\n\n");
 			}
 
+			if (o->m_bNormalizeCondition) {
+
+				mprintf("    Adapting normalization to condition (%.3f RMs per frame on average passed)...\n", (double)o->m_iNormalizeConditionCount / ((double)g_iSteps / g_iStride) );
+
+				// Do the actual correction (steps * RMcount)
+				o->m_pPlProj->m_p2DF->MultiplyBin( 1.0 / o->m_iNormalizeConditionCount );
+
+				// Undo the correction that will be done below
+				o->m_pPlProj->m_p2DF->MultiplyBin( (double)g_iSteps / g_iStride * (double)((CMolecule*)g_oaMolecules[g_iFixMol])->m_laSingleMolIndex.GetSize() );
+			}
+
 			if ((g_bPeriodicX) && (g_bPeriodicY) && (g_bPeriodicZ))
 			{
 				mprintf("    System is periodic, normalizing values to uniform density.\n");
@@ -10088,7 +10469,10 @@ _sdf_nm:
 				o->m_pPlProj->m_p2DF->m_iVectorRes[1] = o->m_pPlProj->m_iVecRes[1];
 				o->m_pPlProj->m_p2DF->m_faVectorData.resize(o->m_pPlProj->m_iVecRes[0]*o->m_pPlProj->m_iVecRes[1]*2);
 
-				ti = (int)(o->m_pPlProj->m_fVecThresh * g_iSteps * ((CMolecule*)g_oaMolecules[g_iFixMol])->m_laSingleMolIndex.GetSize());
+				if (o->m_bNormalizeCondition)
+					ti = (int)(o->m_pPlProj->m_fVecThresh * o->m_iNormalizeConditionCount);
+				else
+					ti = (int)(o->m_pPlProj->m_fVecThresh * g_iSteps * ((CMolecule*)g_oaMolecules[g_iFixMol])->m_laSingleMolIndex.GetSize());
 
 				mprintf("    Using a noise rejection count of %d.\n",ti);
 
@@ -10178,6 +10562,24 @@ _skipplproj:;
 				{
 					if (o->m_bOthers && o->m_pRDF[zr]->m_bRadialCorrect)
 					{
+
+						if (o->m_bNormalizeCondition) {
+
+							mprintf("    Adapting normalization to condition (%.3f RMs per frame on average passed)...\n", (double)o->m_iNormalizeConditionCount / ((double)g_iSteps / g_iStride) );
+
+							// Do the actual correction (steps * RMcount)
+							o->m_pRDF[zr]->m_pRDF->MultiplyBin( 1.0 / o->m_iNormalizeConditionCount );
+
+							// Undo the correction from above
+							o->m_pRDF[zr]->m_pRDF->MultiplyBin( (double)g_iSteps / g_iStride);
+
+							// Undo the RM count correction that will be done below ^^
+							if (o->m_bObsCertain)
+								o->m_pRDF[zr]->m_pRDF->MultiplyBin( (double)o->m_waObsRefList.GetSize() );
+							else
+								o->m_pRDF[zr]->m_pRDF->MultiplyBin( (double)((CMolecule*)g_oaMolecules[g_iFixMol])->m_laSingleMolIndex.GetSize() );
+						}
+
 						if (o->m_pRDF[zr]->m_bProbDens)
 						{
 							mprintf("    Scaling RDF to nm^(-3) ...\n");
@@ -11070,6 +11472,26 @@ _rdfint1:
 					}
 				}
 			} // END IF CHANNELS == 3
+			if (o->m_pCDF->m_bWriteSnapshots) {
+				mprintf(WHITE,"    * Snapshot Analysis\n");
+				mprintf("    %ld configurations in total fulfilled the criteria.\n",o->m_pCDF->m_iWriteSnapshotsTotalCounter);
+				mprintf("      (on average %.8f per RM and time step - multiple configurations per RM are possible)\n",
+					(double)o->m_pCDF->m_iWriteSnapshotsTotalCounter/g_iSteps/((CMolecule*)g_oaMolecules[g_iFixMol])->m_laSingleMolIndex.GetSize()
+				);
+				mprintf("    The probability that any RM has at least one matching configuration is %.6f %%.\n",
+					(double)o->m_pCDF->m_iWriteSnapshotsTotalPerRM/g_iSteps/((CMolecule*)g_oaMolecules[g_iFixMol])->m_laSingleMolIndex.GetSize()*100.0
+				);
+				if (!o->m_pCDF->m_bWriteSnapshotsNoWrite) {
+					if (o->m_pCDF->m_pWriteSnapshotsFile != NULL) {
+						mprintf("    Closing CDF snapshot file \"%s\" ...\n",(const char*)o->m_pCDF->m_sWriteSnapshotsFileName);
+						fclose( o->m_pCDF->m_pWriteSnapshotsFile );
+						o->m_pCDF->m_pWriteSnapshotsFile = NULL;
+						mprintf("    %ld snapshots have been written to file.\n",o->m_pCDF->m_iWriteSnapshotsTotalWritten);
+					} else
+						eprintf("    Warning: CDF snapshot file was not open.\n");
+				} else
+					mprintf("    Only counting, no snapshot file was written.\n");
+			}
 _skipsdf:;
 		} // END IF CDF
 
@@ -11344,6 +11766,7 @@ _ende:
 		delete g_pTempTimestep;
 		g_pTempTimestep = NULL;
 	}
+
 
 	if (apfa != NULL)
 	{

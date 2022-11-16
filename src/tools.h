@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -50,6 +50,7 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <vector>
+#include <algorithm>
 #include <float.h>
 //#include <assert.h>
 
@@ -348,6 +349,17 @@ inline int PeriodicImage1D( double val, double mi, double ma ) {
 
 
 double Chop(double d, double t);
+
+
+template<class T> inline bool VectorContains( const std::vector<T> &vec, T elem) {
+
+	if (std::find(vec.begin(), vec.end(), elem) != vec.end())
+		return true;
+
+	return false;
+}
+
+
 
 
 

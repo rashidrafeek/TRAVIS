@@ -4,9 +4,9 @@
 
     http://www.travis-analyzer.de/
 
-    Copyright (c) 2009-2021 Martin Brehm
-                  2012-2021 Martin Thomas
-                  2016-2021 Sascha Gehrke
+    Copyright (c) 2009-2022 Martin Brehm
+                  2012-2022 Martin Thomas
+                  2016-2022 Sascha Gehrke
 
     Please cite:  J. Chem. Phys. 2020, 152 (16), 164105.         (DOI 10.1063/5.0005078 )
                   J. Chem. Inf. Model. 2011, 51 (8), 2007-2023.  (DOI 10.1021/ci200217w )
@@ -173,12 +173,12 @@ CPowerObservation::CPowerObservation(bool global) {
 
 	if (g_bPower) {
 		if (g_bAdvanced2) {
-			m_bSplitCart = AskYesNo("    Write cartesian contributions (x, y, z, xy, xz, yz) of this power spectrum (y/n)? [no] ",false);
+			m_bSplitCart = AskYesNo("    Write Cartesian contributions (x, y, z, xy, xz, yz) of this power spectrum (y/n)? [no] ",false);
 			mprintf("\n");
 		} else
 			m_bSplitCart = false;
 	} else {
-		m_bSplitCart = AskYesNo("    Write cartesian contributions (x, y, z, xy, xz, yz) of this autocorrelation (y/n)? [no] ",false);
+		m_bSplitCart = AskYesNo("    Write Cartesian contributions (x, y, z, xy, xz, yz) of this autocorrelation (y/n)? [no] ",false);
 		mprintf("\n");
 	}
 	
